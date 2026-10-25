@@ -1,0 +1,3194 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoTrack Pro - Bitácora Automotriz</title>
+  <!-- PWA Meta Tags & Manifest -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AutoTrack">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            },
+            darkcard: '#181f2a',
+            darkbg: '#0f172a'
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Lucide Icons (Vanilla JS) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js for smooth data visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.5);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.7);
+    }
+    .custom-gradient {
+      background: linear-gradient(135deg, rgba(37,99,235,0.15) 0%, rgba(15,23,42,0.6) 100%);
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans antialiased pb-24 md:pb-10 transition-colors duration-200">
+
+  <!-- HEADER -->
+  <header class="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="p-2.5 bg-blue-600 rounded-xl text-white shadow-lg shadow-blue-500/20 flex items-center justify-center">
+          <i data-lucide="gauge" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            AutoTrack <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">Pro</span>
+          </h1>
+          <p id="header-car-info" class="text-xs text-slate-400">Cargando vehículo...</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 sm:gap-3">
+                <!-- Botón Instalar App (PWA) -->
+        <button id="btn-install-pwa" onclick="installPwa()" class="hidden items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold rounded-lg shadow-md transition">
+          <i data-lucide="download" class="w-4 h-4"></i> <span class="hidden sm:inline">Instalar</span> App
+        </button>
+        <!-- Estado de Sincronización / Persistencia -->
+        <button onclick="switchTab('data')" id="sync-status-btn" title="Estado de Persistencia / Nube" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold rounded-lg border border-slate-700 transition">
+          <span id="sync-status-dot" class="w-2 h-2 rounded-full bg-amber-400"></span>
+          <span id="sync-status-text">Local</span>
+        </button>
+
+        <!-- Quick Add Record Button -->
+        <button onclick="openModal('odometer')" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold rounded-lg shadow transition">
+          <i data-lucide="gauge" class="w-4 h-4 text-blue-400"></i> Actualizar Km
+        </button>
+        <button onclick="openModal('fuel')" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg shadow transition">
+          <i data-lucide="plus" class="w-4 h-4"></i> Carga
+        </button>
+        <button onclick="openModal('service')" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow transition">
+          <i data-lucide="wrench" class="w-4 h-4"></i> Service
+        </button>
+
+        <!-- Configuración Vehículo -->
+        <button onclick="openVehicleConfigModal()" title="Editar Vehículo" class="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition border border-slate-800">
+          <i data-lucide="settings" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- NAVIGATION TABS (Visible en todos los tamaños / iframes de Google Sites) -->
+    <nav class="flex items-center gap-1.5 sm:gap-2 mb-6 border-b border-slate-800 pb-2 overflow-x-auto whitespace-nowrap">
+      <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="tab-btn active px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-2 text-blue-400 bg-slate-800/80 border border-blue-500/30 shrink-0">
+        <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Tablero
+      </button>
+      <button onclick="switchTab('fuel')" id="tab-btn-fuel" class="tab-btn px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800/50 shrink-0">
+        <i data-lucide="fuel" class="w-4 h-4"></i> Combustible
+      </button>
+      <button onclick="switchTab('trips')" id="tab-btn-trips" class="tab-btn px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800/50 shrink-0">
+        <i data-lucide="navigation" class="w-4 h-4"></i> Recorridos
+      </button>
+      <button onclick="switchTab('service')" id="tab-btn-service" class="tab-btn px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800/50 shrink-0">
+        <i data-lucide="wrench" class="w-4 h-4"></i> Mantenimiento
+      </button>
+      <button onclick="switchTab('issues')" id="tab-btn-issues" class="tab-btn px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800/50 shrink-0">
+        <i data-lucide="alert-triangle" class="w-4 h-4"></i> Averías
+      </button>
+      <button onclick="switchTab('expenses')" id="tab-btn-expenses" class="tab-btn px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800/50 shrink-0">
+        <i data-lucide="receipt" class="w-4 h-4"></i> Gastos & Vencimientos
+      </button>
+      <button onclick="switchTab('history')" id="tab-btn-history" class="tab-btn px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800/50 shrink-0">
+        <i data-lucide="clock" class="w-4 h-4"></i> Historial Completo
+      </button>
+      <button onclick="switchTab('data')" id="tab-btn-data" class="tab-btn ml-auto px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800/50 shrink-0">
+        <i data-lucide="cloud" class="w-4 h-4"></i> Nube & Backup
+      </button>
+    </nav>
+
+    <!-- SECTION: DASHBOARD -->
+    <div id="view-dashboard" class="tab-view space-y-6">
+      
+      <!-- VEHICLE HERO CARD & QUICK METRICS -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Odómetro Actual -->
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 shadow-sm relative overflow-hidden">
+          <div class="flex items-center justify-between text-slate-400 mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider">Kilometraje Actual</span>
+            <button onclick="openModal('odometer')" title="Actualizar lectura de kilometraje" class="p-1 hover:bg-slate-700 rounded-lg text-blue-400 hover:text-white transition">
+              <i data-lucide="edit-3" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span id="metric-odometer" class="text-3xl font-extrabold text-white">0</span>
+            <span class="text-sm font-medium text-slate-400">km</span>
+          </div>
+          <p id="metric-km-diff" class="text-xs text-slate-400 mt-2 flex items-center gap-1">
+            <i data-lucide="activity" class="w-3.5 h-3.5 text-blue-400"></i> Odómetro registrado
+          </p>
+        </div>
+
+        <!-- Consumo Promedio -->
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 shadow-sm relative overflow-hidden">
+          <div class="flex items-center justify-between text-slate-400 mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider">Consumo Promedio</span>
+            <i data-lucide="zap" class="w-5 h-5 text-amber-400"></i>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span id="metric-consumption" class="text-3xl font-extrabold text-white">--</span>
+            <span id="metric-consumption-unit" class="text-sm font-medium text-slate-400">km/l</span>
+          </div>
+          <p id="metric-consumption-alt" class="text-xs text-slate-400 mt-2">
+            Calculado con tanques llenos
+          </p>
+        </div>
+
+        <!-- Gasto Total Mes -->
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 shadow-sm relative overflow-hidden">
+          <div class="flex items-center justify-between text-slate-400 mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider">Gasto de Este Mes</span>
+            <i data-lucide="dollar-sign" class="w-5 h-5 text-emerald-400"></i>
+          </div>
+          <div class="flex items-baseline gap-1">
+            <span class="text-lg text-emerald-400 font-bold">$</span>
+            <span id="metric-month-expense" class="text-3xl font-extrabold text-white">0</span>
+          </div>
+          <p id="metric-year-expense" class="text-xs text-slate-400 mt-2">
+            Año total: $0
+          </p>
+        </div>
+
+        <!-- Próximo Service -->
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 shadow-sm relative overflow-hidden">
+          <div class="flex items-center justify-between text-slate-400 mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider">Próximo Service</span>
+            <i data-lucide="calendar-clock" class="w-5 h-5 text-purple-400"></i>
+          </div>
+          <div class="flex flex-col">
+            <span id="metric-next-service-km" class="text-xl font-bold text-white truncate">Al día</span>
+            <span id="metric-next-service-date" class="text-xs font-medium text-slate-400 mt-0.5">Sin alertas urgentes</span>
+          </div>
+          <div id="metric-service-badge" class="mt-2 inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded bg-slate-700 text-slate-300 w-fit">
+            Control de fluidos
+          </div>
+        </div>
+      </div>
+
+      <!-- ALERTS & EXPIRATION BANNER -->
+      <div id="dashboard-reminders-container" class="space-y-2"></div>
+
+      <!-- CHARTS SECTION -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Gastos Mensuales por Categoría (Bar Chart) -->
+        <div class="lg:col-span-2 bg-slate-800/50 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-sm font-semibold text-white">Evolución de Gastos (Últimos 6 meses)</h3>
+              <p class="text-xs text-slate-400">Total distribuido por combustible, talleres y otros costos</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+              <span class="text-[11px] text-slate-400">Gastos ($)</span>
+            </div>
+          </div>
+          <div class="h-64 w-full relative">
+            <canvas id="expensesChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Distribución de Gastos (Doughnut Chart) -->
+        <div class="bg-slate-800/50 border border-slate-800 rounded-2xl p-5 flex flex-col">
+          <h3 class="text-sm font-semibold text-white mb-1">Distribución de Costos</h3>
+          <p class="text-xs text-slate-400 mb-4">Proporción general acumulada</p>
+          <div class="h-56 relative flex items-center justify-center">
+            <canvas id="costDistributionChart"></canvas>
+          </div>
+          <div id="distribution-legend" class="mt-4 grid grid-cols-2 gap-2 text-xs text-slate-300"></div>
+        </div>
+      </div>
+
+      <!-- QUICK SHORTCUT BUTTONS (Especially handy on Mobile) -->
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <button onclick="openModal('odometer')" class="p-3 bg-slate-800 hover:bg-slate-700/80 border border-slate-700/80 rounded-xl flex items-center gap-2.5 transition group">
+          <div class="w-9 h-9 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center group-hover:scale-105 transition">
+            <i data-lucide="gauge" class="w-4 h-4"></i>
+          </div>
+          <div class="text-left">
+            <div class="text-xs font-semibold text-white">Actualizar Km</div>
+            <div class="text-[10px] text-slate-400">Lectura rápida</div>
+          </div>
+        </button>
+
+        <button onclick="openModal('trips')" class="p-3 bg-slate-800 hover:bg-slate-700/80 border border-slate-700/80 rounded-xl flex items-center gap-2.5 transition group">
+          <div class="w-9 h-9 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center group-hover:scale-105 transition">
+            <i data-lucide="navigation" class="w-4 h-4"></i>
+          </div>
+          <div class="text-left">
+            <div class="text-xs font-semibold text-white">Nuevo Viaje</div>
+            <div class="text-[10px] text-slate-400">Recorrido</div>
+          </div>
+        </button>
+
+        <button onclick="openModal('fuel')" class="p-3 bg-slate-800 hover:bg-slate-700/80 border border-slate-700/80 rounded-xl flex items-center gap-2.5 transition group">
+          <div class="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center group-hover:scale-105 transition">
+            <i data-lucide="fuel" class="w-4 h-4"></i>
+          </div>
+          <div class="text-left">
+            <div class="text-xs font-semibold text-white">Nueva Carga</div>
+            <div class="text-[10px] text-slate-400">Combustible</div>
+          </div>
+        </button>
+
+        <button onclick="openModal('service')" class="p-3 bg-slate-800 hover:bg-slate-700/80 border border-slate-700/80 rounded-xl flex items-center gap-2.5 transition group">
+          <div class="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center group-hover:scale-105 transition">
+            <i data-lucide="wrench" class="w-4 h-4"></i>
+          </div>
+          <div class="text-left">
+            <div class="text-xs font-semibold text-white">Service</div>
+            <div class="text-[10px] text-slate-400">Mantenimiento</div>
+          </div>
+        </button>
+
+        <button onclick="openModal('issues')" class="p-3 bg-slate-800 hover:bg-slate-700/80 border border-slate-700/80 rounded-xl flex items-center gap-2.5 transition group">
+          <div class="w-9 h-9 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center group-hover:scale-105 transition">
+            <i data-lucide="alert-octagon" class="w-4 h-4"></i>
+          </div>
+          <div class="text-left">
+            <div class="text-xs font-semibold text-white">Avería</div>
+            <div class="text-[10px] text-slate-400">Fallas / Taller</div>
+          </div>
+        </button>
+      </div>
+
+      <!-- RECENT ACTIVITY LIST -->
+      <div class="bg-slate-800/40 border border-slate-800 rounded-2xl p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+            <i data-lucide="history" class="w-4 h-4 text-blue-400"></i> Actividad Reciente
+          </h3>
+          <button onclick="switchTab('history')" class="text-xs text-blue-400 hover:underline">Ver todo el historial &rarr;</button>
+        </div>
+        <div id="recent-activity-list" class="space-y-2">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION: COMBUSTIBLE (FUEL) -->
+    <div id="view-fuel" class="tab-view hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-800/40 p-4 rounded-2xl border border-slate-800">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i data-lucide="fuel" class="w-5 h-5 text-blue-400"></i> Cargas de Combustible
+          </h2>
+          <p class="text-xs text-slate-400">Lleva el cálculo automático de autonomía y consumo exacto</p>
+        </div>
+        <button onclick="openModal('fuel')" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-blue-600/20 transition self-start sm:self-auto">
+          <i data-lucide="plus" class="w-4 h-4"></i> Nueva Carga
+        </button>
+      </div>
+
+      <div class="bg-slate-800/50 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs sm:text-sm text-slate-300">
+            <thead class="bg-slate-800 text-slate-400 uppercase text-[11px] tracking-wider border-b border-slate-700/60">
+              <tr>
+                <th class="py-3 px-4">Fecha</th>
+                <th class="py-3 px-4">Kilometraje</th>
+                <th class="py-3 px-4">Litros / m³</th>
+                <th class="py-3 px-4">Tipo</th>
+                <th class="py-3 px-4">Costo Total</th>
+                <th class="py-3 px-4">Consumo</th>
+                <th class="py-3 px-4 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="fuel-table-body" class="divide-y divide-slate-800">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+        <div id="fuel-empty" class="hidden p-8 text-center text-slate-500">
+          <i data-lucide="fuel" class="w-10 h-10 mx-auto stroke-1 mb-2 opacity-50"></i>
+          No hay registros de combustible aún.
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION: BITÁCORA DE RECORRIDOS (TRIPS) -->
+    <div id="view-trips" class="tab-view hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-800/40 p-4 rounded-2xl border border-slate-800">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i data-lucide="navigation" class="w-5 h-5 text-cyan-400"></i> Bitácora de Recorridos & Kilometraje
+          </h2>
+          <p class="text-xs text-slate-400">Registra tus viajes diarios, distancias y mantén el odómetro siempre al día</p>
+        </div>
+        <div class="flex items-center gap-2 self-start sm:self-auto">
+          <button onclick="openModal('odometer')" class="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs sm:text-sm font-semibold rounded-xl shadow transition">
+            <i data-lucide="gauge" class="w-4 h-4 text-blue-400"></i> Odómetro
+          </button>
+          <button onclick="openModal('trips')" class="inline-flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-lg shadow-cyan-600/20 transition">
+            <i data-lucide="plus" class="w-4 h-4"></i> Nuevo Recorrido
+          </button>
+        </div>
+      </div>
+
+      <!-- Resumen de Recorridos (Métricas Rápidas) -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3.5">
+          <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Km Este Mes</span>
+          <span id="trip-metric-month" class="text-2xl font-bold text-cyan-400">0</span>
+          <span class="text-[11px] text-slate-400 block mt-0.5">km recorridos</span>
+        </div>
+        <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3.5">
+          <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Km Este Año</span>
+          <span id="trip-metric-year" class="text-2xl font-bold text-white">0</span>
+          <span class="text-[11px] text-slate-400 block mt-0.5">acumulado año</span>
+        </div>
+        <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3.5">
+          <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Promedio Diario</span>
+          <span id="trip-metric-daily" class="text-2xl font-bold text-amber-400">0</span>
+          <span class="text-[11px] text-slate-400 block mt-0.5">km / día</span>
+        </div>
+        <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3.5">
+          <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Total Recorridos</span>
+          <span id="trip-metric-count" class="text-2xl font-bold text-white">0</span>
+          <span class="text-[11px] text-slate-400 block mt-0.5">viajes anotados</span>
+        </div>
+      </div>
+
+      <div class="bg-slate-800/50 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs sm:text-sm text-slate-300">
+            <thead class="bg-slate-800 text-slate-400 uppercase text-[11px] tracking-wider border-b border-slate-700/60">
+              <tr>
+                <th class="py-3 px-4">Fecha</th>
+                <th class="py-3 px-4">Km Inicial</th>
+                <th class="py-3 px-4">Km Final</th>
+                <th class="py-3 px-4">Distancia</th>
+                <th class="py-3 px-4">Motivo</th>
+                <th class="py-3 px-4">Trayecto / Notas</th>
+                <th class="py-3 px-4 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="trips-table-body" class="divide-y divide-slate-800">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+        <div id="trips-empty" class="hidden p-8 text-center text-slate-500">
+          <i data-lucide="navigation" class="w-10 h-10 mx-auto stroke-1 mb-2 opacity-50"></i>
+          No hay recorridos anotados todavía. Usa "Nuevo Recorrido" o "Actualizar Km".
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION: SERVICES & MANTENIMIENTO -->
+    <div id="view-service" class="tab-view hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-800/40 p-4 rounded-2xl border border-slate-800">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i data-lucide="wrench" class="w-5 h-5 text-emerald-400"></i> Mantenimiento Preventivo y Services
+          </h2>
+          <p class="text-xs text-slate-400">Aceite, correas, pastillas de freno, neumáticos y alertas programadas</p>
+        </div>
+        <button onclick="openModal('service')" class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-emerald-600/20 transition self-start sm:self-auto">
+          <i data-lucide="plus" class="w-4 h-4"></i> Registrar Service
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="service-cards-container">
+        <!-- Rendered via JS -->
+      </div>
+      <div id="service-empty" class="hidden p-8 text-center text-slate-500 bg-slate-800/30 rounded-2xl border border-slate-800">
+        <i data-lucide="wrench" class="w-10 h-10 mx-auto stroke-1 mb-2 opacity-50"></i>
+        No se han registrado services preventivos todavía.
+      </div>
+    </div>
+
+    <!-- SECTION: AVERÍAS Y REPARACIONES -->
+    <div id="view-issues" class="tab-view hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-800/40 p-4 rounded-2xl border border-slate-800">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i data-lucide="alert-octagon" class="w-5 h-5 text-rose-400"></i> Averías, Reparaciones y Taller
+          </h2>
+          <p class="text-xs text-slate-400">Registro de fallas imprevistas, repuestos cambiados y seguimiento</p>
+        </div>
+        <button onclick="openModal('issues')" class="inline-flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-rose-600/20 transition self-start sm:self-auto">
+          <i data-lucide="plus" class="w-4 h-4"></i> Nueva Avería
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="issues-cards-container">
+        <!-- Rendered via JS -->
+      </div>
+      <div id="issues-empty" class="hidden p-8 text-center text-slate-500 bg-slate-800/30 rounded-2xl border border-slate-800">
+        <i data-lucide="smile" class="w-10 h-10 mx-auto stroke-1 mb-2 text-emerald-400 opacity-60"></i>
+        ¡Excelente! No hay averías pendientes ni registradas.
+      </div>
+    </div>
+
+    <!-- SECTION: OTROS GASTOS Y VENCIMIENTOS -->
+    <div id="view-expenses" class="tab-view hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-800/40 p-4 rounded-2xl border border-slate-800">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i data-lucide="receipt" class="w-5 h-5 text-amber-400"></i> Gastos Varios & Vencimientos de Documentación
+          </h2>
+          <p class="text-xs text-slate-400">Seguro, VTV/RTO, patentes, peajes, estacionamiento y trámites</p>
+        </div>
+        <button onclick="openModal('expenses')" class="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-amber-600/20 transition self-start sm:self-auto">
+          <i data-lucide="plus" class="w-4 h-4"></i> Registrar Gasto / Vencimiento
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="expenses-cards-container">
+        <!-- Rendered via JS -->
+      </div>
+      <div id="expenses-empty" class="hidden p-8 text-center text-slate-500 bg-slate-800/30 rounded-2xl border border-slate-800">
+        <i data-lucide="receipt" class="w-10 h-10 mx-auto stroke-1 mb-2 opacity-50"></i>
+        No hay gastos varios o trámites cargados.
+      </div>
+    </div>
+
+    <!-- SECTION: HISTORIAL COMPLETO CON FILTROS -->
+    <div id="view-history" class="tab-view hidden space-y-6">
+      <div class="bg-slate-800/40 border border-slate-800 rounded-2xl p-4">
+        <div class="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+          <!-- Buscador -->
+          <div class="relative flex-1">
+            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input type="text" id="history-search" oninput="renderHistory()" placeholder="Buscar por taller, descripción, repuesto..." class="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-700/80 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+
+          <!-- Filtro Tipo -->
+          <div class="flex items-center gap-2 flex-wrap">
+            <button onclick="filterHistory('all')" class="history-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white" data-filter="all">Todos</button>
+            <button onclick="filterHistory('trips')" class="history-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700" data-filter="trips">Recorridos</button>
+            <button onclick="filterHistory('fuel')" class="history-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700" data-filter="fuel">Combustible</button>
+            <button onclick="filterHistory('service')" class="history-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700" data-filter="service">Service</button>
+            <button onclick="filterHistory('issues')" class="history-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700" data-filter="issues">Averías</button>
+            <button onclick="filterHistory('expenses')" class="history-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700" data-filter="expenses">Gastos</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timeline list -->
+      <div class="bg-slate-800/40 border border-slate-800 rounded-2xl p-4 sm:p-6">
+        <div id="history-timeline" class="space-y-4">
+          <!-- Rendered via JS -->
+        </div>
+        <div id="history-empty" class="hidden p-12 text-center text-slate-500">
+          <i data-lucide="clock" class="w-10 h-10 mx-auto stroke-1 mb-2 opacity-50"></i>
+          No hay registros que coincidan con la búsqueda.
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION: BACKUP & CONFIG -->
+    <div id="view-data" class="tab-view hidden space-y-6">
+      <div class="max-w-3xl mx-auto space-y-6">
+
+        <!-- CARD 1: GOOGLE SITES CLOUD PERSISTENCE (GOOGLE SHEETS / APPS SCRIPT) -->
+        <div class="bg-slate-800/60 border border-blue-500/30 rounded-2xl p-6 shadow-lg">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <i data-lucide="cloud" class="w-5 h-5 text-blue-400"></i> Persistencia en la Nube para Google Sites (Google Sheets)
+            </h2>
+            <span id="cloud-card-badge" class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 w-fit">
+              Modo Local
+            </span>
+          </div>
+          <p class="text-xs text-slate-300 mb-4">
+            Google Sites ejecuta el código dentro de un recuadro aislado (iframe) que borra la memoria local al actualizar la página. Conectando tu propia hoja de <b>Google Sheets (Apps Script)</b>, todos tus mantenimientos, averías y cargas se guardarán automáticamente en tu Google Drive.
+          </p>
+
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">URL de tu Web App de Google Apps Script (termina en <code class="text-blue-400">/exec</code>):</label>
+              <div class="flex flex-col sm:flex-row gap-2">
+                <input type="url" id="cloud-sync-url-input" placeholder="https://script.google.com/macros/s/AKfycb.../exec" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button onclick="saveAndTestCloudUrl()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-xl shadow transition shrink-0 flex items-center justify-center gap-1.5">
+                  <i data-lucide="check" class="w-4 h-4"></i> Conectar y Sincronizar
+                </button>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 pt-1">
+              <button onclick="pullFromCloud(true)" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                <i data-lucide="cloud-download" class="w-3.5 h-3.5 text-blue-400"></i> Descargar desde la Nube
+              </button>
+              <button onclick="pushToCloud(true)" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                <i data-lucide="cloud-upload" class="w-3.5 h-3.5 text-emerald-400"></i> Subir Datos Actuales a la Nube
+              </button>
+              <button onclick="copyEmbeddedHtmlForGoogleSites()" class="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ml-auto">
+                <i data-lucide="code" class="w-3.5 h-3.5"></i> Copiar HTML listo para Google Sites (con URL y datos fijos)
+              </button>
+            </div>
+
+            <!-- Instrucciones desplegables con el script listo -->
+            <details class="mt-4 bg-slate-900/80 border border-slate-700/80 rounded-xl p-3.5 text-xs text-slate-300">
+              <summary class="font-semibold text-blue-400 cursor-pointer select-none flex items-center justify-between">
+                <span>📌 Ver instrucciones paso a paso (1 minuto) y copiar código de Google Apps Script</span>
+              </summary>
+              <div class="mt-3 space-y-2.5 text-slate-300 border-t border-slate-800 pt-3">
+                <ol class="list-decimal list-inside space-y-1.5 text-[11px] sm:text-xs">
+                  <li>Abre <a href="https://sheets.new" target="_blank" rel="noopener" class="text-blue-400 underline">Google Sheets (sheets.new)</a> para crear una hoja nueva en tu Google Drive.</li>
+                  <li>En el menú superior, haz clic en <b>Extensiones &rarr; Apps Script</b>.</li>
+                  <li>Borra el texto que venga en el editor y pega el código haciendo clic en el botón <b>"Copiar Código Apps Script"</b> de abajo.</li>
+                  <li>Presiona Guardar (💾) y haz clic arriba a la derecha en <b>Implementar &rarr; Nueva implementación</b>.</li>
+                  <li>Elige el tipo <b>Aplicación web</b>:
+                    <ul class="list-disc list-inside ml-4 mt-1 text-slate-400">
+                      <li>Ejecutar como: <b>Yo</b></li>
+                      <li>Quién tiene acceso: <b>Cualquier persona</b> (necesario para que Google Sites pueda leer/escribir).</li>
+                    </ul>
+                  </li>
+                  <li>Copia la <b>URL de la aplicación web</b> (<code class="text-blue-400">https://script.google.com/macros/s/.../exec</code>), pégala arriba y luego usa el botón verde <b>"Copiar HTML listo para Google Sites"</b> para pegarlo en tu Google Sites. ¡Así nunca perderá la URL ni tus datos al refrescar!</li>
+                </ol>
+                <div class="pt-2 flex items-center justify-between">
+                  <span class="text-[11px] text-slate-400">También tienes este código en el archivo <code class="text-slate-200">google_apps_script.gs</code></span>
+                  <button type="button" onclick="copyAppsScriptCode()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar Código Apps Script
+                  </button>
+                </div>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <!-- CARD 2: LOCAL BACKUP & EXPORT/IMPORT -->
+        <div class="bg-slate-800/50 border border-slate-800 rounded-2xl p-6">
+          <h2 class="text-base font-bold text-white flex items-center gap-2 mb-2">
+            <i data-lucide="database" class="w-5 h-5 text-blue-400"></i> Copia de Seguridad Manual (Archivos JSON / CSV)
+          </h2>
+          <p class="text-xs text-slate-400 mb-6">Puedes descargar o restaurar copias de seguridad completas de tu vehículo en cualquier momento.</p>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button onclick="exportDataJSON()" class="p-4 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-xl text-left flex items-start gap-3 transition">
+              <div class="p-2 bg-blue-500/10 text-blue-400 rounded-lg">
+                <i data-lucide="download" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <div class="text-sm font-semibold text-white">Exportar JSON</div>
+                <div class="text-xs text-slate-400">Copia de seguridad completa</div>
+              </div>
+            </button>
+
+            <button onclick="exportDataCSV()" class="p-4 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-xl text-left flex items-start gap-3 transition">
+              <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg">
+                <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <div class="text-sm font-semibold text-white">Exportar CSV</div>
+                <div class="text-xs text-slate-400">Para abrir en Excel o Google Sheets</div>
+              </div>
+            </button>
+          </div>
+
+          <div class="mt-6 pt-6 border-t border-slate-700/60">
+            <label class="block text-xs font-semibold text-slate-300 mb-2">Restaurar copia desde archivo JSON:</label>
+            <input type="file" id="import-json-input" accept=".json" class="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer">
+          </div>
+
+          <div class="mt-6 pt-6 border-t border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h4 class="text-xs font-semibold text-slate-300">Opciones de reinicio de datos</h4>
+              <p class="text-[11px] text-slate-500">Dejar todos los registros en cero para tu Renault Megane o cargar datos de prueba</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="clearAllRecords()" class="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-xs font-semibold rounded-lg text-rose-300 border border-rose-500/30">
+                Vaciar Registros
+              </button>
+              <button onclick="loadSampleData()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg text-slate-300 border border-slate-700">
+                Cargar Demo
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MOBILE BOTTOM NAVIGATION BAR -->
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-1 py-1.5 flex items-center justify-around">
+    <button onclick="switchTab('dashboard')" class="mobile-tab-btn flex flex-col items-center p-1 text-blue-400" data-tab="dashboard">
+      <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+      <span class="text-[10px] font-medium mt-0.5">Inicio</span>
+    </button>
+    <button onclick="switchTab('trips')" class="mobile-tab-btn flex flex-col items-center p-1 text-slate-400" data-tab="trips">
+      <i data-lucide="navigation" class="w-5 h-5"></i>
+      <span class="text-[10px] font-medium mt-0.5">Viajes</span>
+    </button>
+    <button onclick="switchTab('fuel')" class="mobile-tab-btn flex flex-col items-center p-1 text-slate-400" data-tab="fuel">
+      <i data-lucide="fuel" class="w-5 h-5"></i>
+      <span class="text-[10px] font-medium mt-0.5">Cargas</span>
+    </button>
+    <button onclick="openModal('quickAdd')" class="flex flex-col items-center -mt-5 bg-blue-600 text-white p-2.5 rounded-full shadow-lg shadow-blue-500/40">
+      <i data-lucide="plus" class="w-5 h-5"></i>
+    </button>
+    <button onclick="switchTab('service')" class="mobile-tab-btn flex flex-col items-center p-1 text-slate-400" data-tab="service">
+      <i data-lucide="wrench" class="w-5 h-5"></i>
+      <span class="text-[10px] font-medium mt-0.5">Service</span>
+    </button>
+    <button onclick="switchTab('history')" class="mobile-tab-btn flex flex-col items-center p-1 text-slate-400" data-tab="history">
+      <i data-lucide="clock" class="w-5 h-5"></i>
+      <span class="text-[10px] font-medium mt-0.5">Historial</span>
+    </button>
+  </nav>
+
+  <!-- ==================== MODALS ==================== -->
+
+  <!-- MODAL: REGISTRAR / EDITAR RECORRIDO (TRIP) -->
+  <div id="modal-trips" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="navigation" class="w-5 h-5 text-cyan-400"></i> <span id="modal-title-trips">Registrar Recorrido</span>
+        </h3>
+        <button onclick="closeModal('trips')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form id="form-trips" onsubmit="saveTrip(event)" class="p-5 space-y-4">
+        <input type="hidden" id="trip-id">
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Fecha</label>
+          <input type="date" id="trip-date" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Km Inicial</label>
+            <input type="number" id="trip-start-km" required min="0" placeholder="Ej: 143000" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500" oninput="onTripKmChange('start')">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Km Final</label>
+            <input type="number" id="trip-end-km" required min="0" placeholder="Ej: 143065" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500" oninput="onTripKmChange('end')">
+          </div>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-xs font-semibold text-slate-300">Distancia Recorrida (km)</label>
+            <span class="text-[10px] text-slate-400">Calculada automática</span>
+          </div>
+          <input type="number" step="0.1" id="trip-distance" min="0" placeholder="0" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-cyan-400 font-bold focus:ring-2 focus:ring-cyan-500" oninput="onTripKmChange('dist')">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Motivo del Viaje</label>
+          <div class="grid grid-cols-4 gap-1.5 mb-2">
+            <button type="button" onclick="setTripPurpose('Trabajo')" class="trip-purpose-chip px-2 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 text-center border border-slate-700">Trabajo</button>
+            <button type="button" onclick="setTripPurpose('Personal')" class="trip-purpose-chip px-2 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 text-center border border-slate-700">Personal</button>
+            <button type="button" onclick="setTripPurpose('Viaje')" class="trip-purpose-chip px-2 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 text-center border border-slate-700">Viaje</button>
+            <button type="button" onclick="setTripPurpose('Otro')" class="trip-purpose-chip px-2 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 text-center border border-slate-700">Otro</button>
+          </div>
+          <input type="text" id="trip-purpose" required placeholder="O escribe un motivo personalizado..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Trayecto (Origen &rarr; Destino)</label>
+          <input type="text" id="trip-route" placeholder="Ej: Casa &rarr; Centro &rarr; Retiro" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Notas / Observaciones</label>
+          <input type="text" id="trip-notes" placeholder="Opcional..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500">
+        </div>
+
+        <div class="pt-2 flex gap-2">
+          <button type="button" onclick="closeModal('trips')" class="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-semibold transition">Cancelar</button>
+          <button type="submit" class="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-sm font-semibold transition shadow-md shadow-cyan-500/20">Guardar Recorrido</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ACTUALIZACIÓN RÁPIDA DE ODÓMETRO (1 CLIC) -->
+  <div id="modal-odometer" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="gauge" class="w-5 h-5 text-blue-400"></i> Actualizar Odómetro
+        </h3>
+        <button onclick="closeModal('odometer')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form onsubmit="saveQuickOdometer(event)" class="p-5 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Kilometraje Actual (km)</label>
+          <input type="number" id="quick-odometer-val" required min="0" placeholder="Ej: 145200" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-lg font-bold text-white focus:ring-2 focus:ring-blue-500">
+          <p id="quick-odometer-hint" class="text-[11px] text-slate-400 mt-1">Último odómetro registrado: 0 km</p>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Fecha de la Lectura</label>
+          <input type="date" id="quick-odometer-date" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Nota (opcional)</label>
+          <input type="text" id="quick-odometer-notes" placeholder="Ej: Control fin de semana" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div class="pt-2 flex gap-2">
+          <button type="button" onclick="closeModal('odometer')" class="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-semibold transition">Cancelar</button>
+          <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-semibold transition shadow-md shadow-blue-500/20">Guardar Km</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: REGISTRAR / EDITAR COMBUSTIBLE -->
+  <div id="modal-fuel" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="fuel" class="w-5 h-5 text-blue-400"></i> <span id="modal-title-fuel">Registrar Carga de Combustible</span>
+        </h3>
+        <button onclick="closeModal('fuel')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form id="form-fuel" onsubmit="saveFuel(event)" class="p-5 space-y-4">
+        <input type="hidden" id="fuel-id">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Fecha</label>
+            <input type="date" id="fuel-date" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Kilometraje (km)</label>
+            <input type="number" id="fuel-km" required min="0" placeholder="Ej: 145000" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Litros cargados</label>
+            <input type="number" step="0.01" id="fuel-liters" required placeholder="Ej: 42.5" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500" oninput="calculateFuelCost()">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Costo Total ($)</label>
+            <input type="number" step="0.01" id="fuel-cost" required placeholder="Ej: 45000" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Tipo de Combustible</label>
+            <select id="fuel-type" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
+              <option value="Nafta Súper">Nafta Súper</option>
+              <option value="Nafta Premium">Nafta Premium</option>
+              <option value="Diesel común">Diesel común</option>
+              <option value="Diesel Premium">Diesel Premium</option>
+              <option value="GNC">GNC (m³)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Estación de servicio</label>
+            <input type="text" id="fuel-station" placeholder="YPF, Shell, Axion..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3 bg-slate-800/60 p-3 rounded-xl border border-slate-700">
+          <input type="checkbox" id="fuel-full-tank" checked class="w-4 h-4 text-blue-600 rounded bg-slate-900 border-slate-700 focus:ring-blue-500">
+          <label for="fuel-full-tank" class="text-xs text-slate-300 cursor-pointer">
+            <span class="font-semibold text-white block">¿Tanque Lleno?</span>
+            Permite calcular el consumo exacto entre cargas consecutivas.
+          </label>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Notas / Observaciones</label>
+          <input type="text" id="fuel-notes" placeholder="Opcional..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <div class="pt-3 flex gap-2">
+          <button type="button" onclick="closeModal('fuel')" class="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-semibold transition">Cancelar</button>
+          <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-semibold transition shadow-md shadow-blue-500/20">Guardar Carga</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: REGISTRAR / EDITAR SERVICE / MANTENIMIENTO -->
+  <div id="modal-service" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl max-h-[90vh] flex flex-col">
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="wrench" class="w-5 h-5 text-emerald-400"></i> <span id="modal-title-service">Registrar Mantenimiento / Service</span>
+        </h3>
+        <button onclick="closeModal('service')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form id="form-service" onsubmit="saveService(event)" class="p-5 space-y-4 overflow-y-auto flex-1">
+        <input type="hidden" id="service-id">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Fecha</label>
+            <input type="date" id="service-date" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Kilometraje al momento</label>
+            <input type="number" id="service-km" required min="0" placeholder="Ej: 145000" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Tipo de Service / Tarea</label>
+          <select id="service-type" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500">
+            <option value="Cambio de Aceite y Filtro">Cambio de Aceite y Filtro</option>
+            <option value="Filtro de Aire / Habitáculo / Nafta">Filtros (Aire / Habitáculo / Combustible)</option>
+            <option value="Frenos (Pastillas / Discos)">Frenos (Pastillas / Discos / Líquido)</option>
+            <option value="Correa de Distribución / Bomba de Agua">Distribución y Bomba de Agua</option>
+            <option value="Alineación y Balanceo">Alineación, Balanceo y Rotación</option>
+            <option value="Neumáticos nuevos">Neumáticos Nuevos</option>
+            <option value="Batería">Batería</option>
+            <option value="Suspensión / Amortiguadores">Suspensión y Amortiguadores</option>
+            <option value="Bujías y Cables">Bujías y Cables de Encendido</option>
+            <option value="Service Completo General">Service Programado General</option>
+            <option value="Otro">Otro trabajo preventivo</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Taller / Mecánico</label>
+            <input type="text" id="service-workshop" placeholder="Ej: Taller Lubricentro Sur" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Costo Total ($)</label>
+            <input type="number" step="0.01" id="service-cost" required min="0" placeholder="Ej: 95000" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500">
+          </div>
+        </div>
+
+        <div class="bg-slate-800/70 p-3 rounded-xl border border-slate-700 space-y-3">
+          <div class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+            <i data-lucide="bell" class="w-3.5 h-3.5 text-emerald-400"></i> Alerta de Próximo Service
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Próximo a los (km):</label>
+              <input type="number" id="service-next-km" placeholder="Ej: 155000" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">O por fecha límite:</label>
+              <input type="date" id="service-next-date" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Detalle / Repuestos utilizados</label>
+          <textarea id="service-notes" rows="2" placeholder="Marca de aceite (10W40 / 5W40), filtros, correas, observaciones..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:ring-2 focus:ring-emerald-500"></textarea>
+        </div>
+
+        <div class="pt-2 flex gap-2">
+          <button type="button" onclick="closeModal('service')" class="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-semibold transition">Cancelar</button>
+          <button type="submit" class="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-semibold transition shadow-md shadow-emerald-500/20">Guardar Service</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: REGISTRAR / EDITAR AVERÍA -->
+  <div id="modal-issues" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="alert-octagon" class="w-5 h-5 text-rose-400"></i> <span id="modal-title-issues">Registrar Avería o Falla</span>
+        </h3>
+        <button onclick="closeModal('issues')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form id="form-issues" onsubmit="saveIssue(event)" class="p-5 space-y-4">
+        <input type="hidden" id="issue-id">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Fecha Detección</label>
+            <input type="date" id="issue-date" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-rose-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Estado</label>
+            <select id="issue-status" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-rose-500">
+              <option value="Pendiente">⚠️ Pendiente</option>
+              <option value="En Taller">🔧 En Taller</option>
+              <option value="Resuelto">✅ Resuelto</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Descripción del Problema</label>
+          <input type="text" id="issue-title" required placeholder="Ej: Ruido al frenar, bobina de encendido, termostato..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-rose-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Costo Reparación ($)</label>
+            <input type="number" step="0.01" id="issue-cost" min="0" placeholder="0 si aún no se arregló" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-rose-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Fecha de Solución</label>
+            <input type="date" id="issue-resolved-date" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-rose-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Taller y Repuestos Colocados</label>
+          <textarea id="issue-notes" rows="2" placeholder="Diagnóstico del mecánico, repuestos cambiados..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:ring-2 focus:ring-rose-500"></textarea>
+        </div>
+
+        <div class="pt-2 flex gap-2">
+          <button type="button" onclick="closeModal('issues')" class="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-semibold transition">Cancelar</button>
+          <button type="submit" class="flex-1 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-sm font-semibold transition shadow-md shadow-rose-500/20">Guardar Avería</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: REGISTRAR / EDITAR OTRO GASTO / VENCIMIENTO -->
+  <div id="modal-expenses" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="receipt" class="w-5 h-5 text-amber-400"></i> <span id="modal-title-expenses">Registrar Gasto o Documento</span>
+        </h3>
+        <button onclick="closeModal('expenses')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form id="form-expenses" onsubmit="saveExpense(event)" class="p-5 space-y-4">
+        <input type="hidden" id="expense-id">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Fecha de Pago</label>
+            <input type="date" id="expense-date" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-amber-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Categoría</label>
+            <select id="expense-cat" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-amber-500">
+              <option value="Seguro">Seguro Automotor</option>
+              <option value="VTV / RTO">VTV / RTO (Revisión Técnica)</option>
+              <option value="Patente / Impuestos">Patente / Impuestos</option>
+              <option value="Peajes">Peajes</option>
+              <option value="Estacionamiento">Estacionamiento</option>
+              <option value="Lavado / Estética">Lavado / Estética automotriz</option>
+              <option value="Multa">Multa de tránsito</option>
+              <option value="Accesorios">Accesorios / Otros</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Monto ($)</label>
+            <input type="number" step="0.01" id="expense-amount" required min="0" placeholder="Ej: 32000" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-amber-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Fecha de Vencimiento</label>
+            <input type="date" id="expense-due-date" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-amber-500">
+            <span class="text-[10px] text-slate-400">Para VTV, póliza o patente</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Detalle / Empresa aseguradora</label>
+          <input type="text" id="expense-detail" placeholder="Ej: Cuota mensual seguro / Telepase mensual" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-amber-500">
+        </div>
+
+        <div class="pt-2 flex gap-2">
+          <button type="button" onclick="closeModal('expenses')" class="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-semibold transition">Cancelar</button>
+          <button type="submit" class="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-sm font-semibold transition shadow-md shadow-amber-500/20">Guardar Gasto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: QUICK ADD SELECTION (Mobile) -->
+  <div id="modal-quickAdd" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-5 space-y-3">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <h4 class="text-sm font-bold text-white">¿Qué deseas registrar?</h4>
+        <button onclick="closeModal('quickAdd')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <button onclick="closeModal('quickAdd'); openModal('odometer');" class="w-full p-3.5 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center gap-3 text-left">
+        <i data-lucide="gauge" class="w-5 h-5 text-indigo-400"></i>
+        <div>
+          <div class="text-xs font-semibold text-white">Actualizar Odómetro</div>
+          <div class="text-[11px] text-slate-400">Lectura rápida de kilometraje</div>
+        </div>
+      </button>
+      <button onclick="closeModal('quickAdd'); openModal('trips');" class="w-full p-3.5 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center gap-3 text-left">
+        <i data-lucide="navigation" class="w-5 h-5 text-cyan-400"></i>
+        <div>
+          <div class="text-xs font-semibold text-white">Nuevo Recorrido / Viaje</div>
+          <div class="text-[11px] text-slate-400">Km inicial, final, trayecto y motivo</div>
+        </div>
+      </button>
+      <button onclick="closeModal('quickAdd'); openModal('fuel');" class="w-full p-3.5 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center gap-3 text-left">
+        <i data-lucide="fuel" class="w-5 h-5 text-blue-400"></i>
+        <div>
+          <div class="text-xs font-semibold text-white">Carga de Combustible</div>
+          <div class="text-[11px] text-slate-400">Litros, costo y cálculo de consumo</div>
+        </div>
+      </button>
+      <button onclick="closeModal('quickAdd'); openModal('service');" class="w-full p-3.5 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center gap-3 text-left">
+        <i data-lucide="wrench" class="w-5 h-5 text-emerald-400"></i>
+        <div>
+          <div class="text-xs font-semibold text-white">Service / Mantenimiento</div>
+          <div class="text-[11px] text-slate-400">Aceite, filtros, pastillas y alertas</div>
+        </div>
+      </button>
+      <button onclick="closeModal('quickAdd'); openModal('issues');" class="w-full p-3.5 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center gap-3 text-left">
+        <i data-lucide="alert-octagon" class="w-5 h-5 text-rose-400"></i>
+        <div>
+          <div class="text-xs font-semibold text-white">Avería o Taller</div>
+          <div class="text-[11px] text-slate-400">Ruidos, roturas y repuestos</div>
+        </div>
+      </button>
+      <button onclick="closeModal('quickAdd'); openModal('expenses');" class="w-full p-3.5 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center gap-3 text-left">
+        <i data-lucide="receipt" class="w-5 h-5 text-amber-400"></i>
+        <div>
+          <div class="text-xs font-semibold text-white">Otro Gasto / Vencimiento</div>
+          <div class="text-[11px] text-slate-400">Seguro, peaje, VTV o multas</div>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: CONFIGURACIÓN DEL VEHÍCULO -->
+  <div id="modal-vehicle" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="car" class="w-5 h-5 text-blue-400"></i> Datos del Vehículo
+        </h3>
+        <button onclick="closeVehicleConfigModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form id="form-vehicle" onsubmit="saveVehicleConfig(event)" class="p-5 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Marca y Modelo</label>
+          <input type="text" id="veh-model" required placeholder="Ej: Renault Megane 1.6 Pack Plus" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Año</label>
+            <input type="number" id="veh-year" placeholder="Ej: 2008" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Patente / Placa</label>
+            <input type="text" id="veh-plate" placeholder="Ej: HAA 123" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white uppercase focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Unidad de Consumo Preferida</label>
+          <select id="veh-unit" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
+            <option value="kml">Kilómetros por Litro (km/l)</option>
+            <option value="l100">Litros cada 100 km (l/100km)</option>
+          </select>
+        </div>
+        <div class="pt-2 flex gap-2">
+          <button type="button" onclick="closeVehicleConfigModal()" class="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-semibold transition">Cancelar</button>
+          <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-semibold transition shadow-md shadow-blue-500/20">Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CONFIRMACIÓN PERSONALIZADA (Compatible con Google Sites Sandbox) -->
+  <div id="modal-confirm" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl p-5 space-y-4">
+      <div class="flex items-start gap-3">
+        <div class="p-2.5 bg-rose-500/10 text-rose-400 rounded-xl shrink-0">
+          <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h4 id="confirm-modal-title" class="text-sm font-bold text-white">Confirmar acción</h4>
+          <p id="confirm-modal-msg" class="text-xs text-slate-300 mt-1">¿Seguro que deseas continuar?</p>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+        <button type="button" onclick="closeConfirmModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition">Cancelar</button>
+        <button type="button" id="confirm-modal-ok-btn" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold transition shadow-md shadow-rose-500/20">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toast" class="fixed bottom-20 md:bottom-6 right-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs shadow-2xl flex items-center gap-2 pointer-events-none">
+    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+    <span id="toast-msg">Mensaje</span>
+  </div>
+
+  <!-- APPLICATION JAVASCRIPT -->
+  <script>
+    /* ========================================================
+       DATA STORE, MULTI-LAYER PERSISTENCE & GOOGLE SITES CLOUD SYNC
+       ======================================================== */
+    const STORAGE_KEY = 'autotrack_data_v2';
+    const CLOUD_URL_KEY = 'autotrack_cloud_url_v1';
+
+    /*CLOUD_URL_START*/
+    const DEFAULT_CLOUD_SYNC_URL = "https://script.google.com/macros/s/AKfycbxAomA4bKm4PC74UnagzDFSAW2edJykRmtWnjNYInYkHs_oGGVSPlTDQ4B00hByC-tNHA/exec";
+    /*CLOUD_URL_END*/
+
+    /*DEFAULT_STATE_START*/
+    const defaultState = {
+      vehicle: {
+        model: "Renault Megane 1.6 Pack Plus",
+        year: "2008",
+        plate: "",
+        unit: "kml"
+      },
+      fuel: [],
+      trips: [],
+      service: [],
+      issues: [],
+      expenses: []
+    };
+    /*DEFAULT_STATE_END*/
+
+    const demoState = {
+      vehicle: {
+        model: "Renault Megane 1.6 Pack Plus",
+        year: "2008",
+        plate: "HAA 208",
+        unit: "kml"
+      },
+      fuel: [
+        { id: "f1", date: "2026-09-01", km: 142000, liters: 45.0, cost: 48000, type: "Nafta Súper", fullTank: true, station: "YPF", notes: "Llenado inicial" },
+        { id: "f2", date: "2026-09-18", km: 142520, liters: 43.5, cost: 46500, type: "Nafta Súper", fullTank: true, station: "Shell", notes: "Uso mixto" },
+        { id: "f3", date: "2026-10-05", km: 143060, liters: 44.0, cost: 47200, type: "Nafta Súper", fullTank: true, station: "Axion", notes: "" }
+      ],
+      trips: [
+        { id: "t1", date: "2026-10-10", startKm: 143060, endKm: 143120, distance: 60, purpose: "Trabajo", route: "Casa → Parque Industrial", notes: "Viaje de trabajo" },
+        { id: "t2", date: "2026-10-15", startKm: 143120, endKm: 143245, distance: 125, purpose: "Personal", route: "Ciudad → Quinta fin de semana", notes: "Ruta 2" }
+      ],
+      service: [
+        { id: "s1", date: "2026-08-10", km: 140000, type: "Cambio de Aceite y Filtro", workshop: "Lubricentro Express", cost: 85000, nextKm: 150000, nextDate: "2027-08-10", notes: "Aceite Elf 10W40 + Filtros originales" },
+        { id: "s2", date: "2026-05-15", km: 135000, type: "Alineación y Balanceo", workshop: "Gomería Neumáticos Ya", cost: 35000, nextKm: 145000, nextDate: "", notes: "Rotación de neumáticos" }
+      ],
+      issues: [
+        { id: "i1", date: "2026-07-20", title: "Pastillas de freno delanteras desgastadas", status: "Resuelto", cost: 65000, resolvedDate: "2026-07-22", notes: "Reemplazo de pastillas delanteras" },
+        { id: "i2", date: "2026-10-10", title: "Lámpara baja delantera quemada (H7)", status: "Pendiente", cost: 0, resolvedDate: "", notes: "Comprar lámpara H7" }
+      ],
+      expenses: [
+        { id: "e1", date: "2026-10-02", cat: "Seguro", amount: 48000, dueDate: "2026-11-05", detail: "Cuota mensual seguro" },
+        { id: "e2", date: "2026-06-15", cat: "VTV / RTO", amount: 28000, dueDate: "2026-11-15", detail: "Revisión Técnica Obligatoria" }
+      ]
+    };
+
+    let appData = JSON.parse(JSON.stringify(defaultState));
+    let cloudSyncUrl = DEFAULT_CLOUD_SYNC_URL;
+    let isSyncing = false;
+
+    function normalizeState(raw) {
+      const base = JSON.parse(JSON.stringify(defaultState));
+      if (!raw || typeof raw !== 'object') return base;
+      const v = raw.vehicle && typeof raw.vehicle === 'object' ? raw.vehicle : {};
+      // Si tenía el auto demo viejo ("Volkswagen Gol Trend 1.6 MSI"), actualizar al Renault Megane 1.6 Pack Plus 2008
+      const isOldHardcodedCar = v.model === "Volkswagen Gol Trend 1.6 MSI" && v.plate === "AD 456 XX";
+      return {
+        vehicle: {
+          model: (!v.model || isOldHardcodedCar) ? base.vehicle.model : v.model,
+          year: (!v.year || isOldHardcodedCar) ? base.vehicle.year : v.year,
+          plate: isOldHardcodedCar ? base.vehicle.plate : (v.plate || ""),
+          unit: v.unit || base.vehicle.unit || "kml"
+        },
+        fuel: Array.isArray(raw.fuel) ? raw.fuel : [],
+        trips: Array.isArray(raw.trips) ? raw.trips : [],
+        service: Array.isArray(raw.service) ? raw.service : [],
+        issues: Array.isArray(raw.issues) ? raw.issues : [],
+        expenses: Array.isArray(raw.expenses) ? raw.expenses : []
+      };
+    }
+
+    // IndexedDB Helper (Respaldo adicional para navegadores que restringen localStorage en iframes)
+    function openIDB() {
+      return new Promise((resolve, reject) => {
+        if (!window.indexedDB) return reject(new Error('No IndexedDB'));
+        const req = indexedDB.open('AutoTrackDB_v2', 1);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('store')) {
+            db.createObjectStore('store');
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function saveToIDB(key, val) {
+      try {
+        const db = await openIDB();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction('store', 'readwrite');
+          tx.objectStore('store').put(val, key);
+          tx.oncomplete = () => resolve(true);
+          tx.onerror = () => reject(tx.error);
+        });
+      } catch (e) {
+        return false;
+      }
+    }
+
+    async function loadFromIDB(key) {
+      try {
+        const db = await openIDB();
+        return new Promise((resolve) => {
+          const tx = db.transaction('store', 'readonly');
+          const req = tx.objectStore('store').get(key);
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => resolve(null);
+        });
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // window.name fallback (sobrevive recargas F5 dentro de iframes con sandbox en la misma pestaña)
+    function saveToWindowName(dataObj, syncUrlStr) {
+      try {
+        const payload = {
+          __autotrack_v2: true,
+          data: dataObj,
+          cloudUrl: syncUrlStr || ''
+        };
+        window.name = JSON.stringify(payload);
+      } catch (e) {}
+    }
+
+    function loadFromWindowName() {
+      try {
+        if (window.name && window.name.startsWith('{')) {
+          const parsed = JSON.parse(window.name);
+          if (parsed && parsed.__autotrack_v2) {
+            return parsed;
+          }
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    function updateSyncStatusUI(state, customText) {
+      const dot = document.getElementById('sync-status-dot');
+      const txt = document.getElementById('sync-status-text');
+      const badge = document.getElementById('cloud-card-badge');
+      const urlInput = document.getElementById('cloud-sync-url-input');
+      if (urlInput && cloudSyncUrl && document.activeElement !== urlInput) {
+        urlInput.value = cloudSyncUrl;
+      }
+
+      if (!dot || !txt) return;
+
+      if (state === 'syncing') {
+        dot.className = 'w-2 h-2 rounded-full bg-blue-400 animate-pulse';
+        txt.textContent = customText || 'Sincronizando...';
+        if (badge) {
+          badge.className = 'inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 w-fit';
+          badge.textContent = 'Sincronizando con Google Sheets...';
+        }
+      } else if (state === 'cloud-ok') {
+        dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+        txt.textContent = customText || 'Nube Activa';
+        if (badge) {
+          badge.className = 'inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 w-fit';
+          badge.textContent = 'Conectado a Google Sheets';
+        }
+      } else if (state === 'cloud-error') {
+        dot.className = 'w-2 h-2 rounded-full bg-rose-400';
+        txt.textContent = customText || 'Error Nube';
+        if (badge) {
+          badge.className = 'inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 w-fit';
+          badge.textContent = 'Error de conexión con la Nube';
+        }
+      } else {
+        dot.className = 'w-2 h-2 rounded-full bg-amber-400';
+        txt.textContent = customText || 'Guardado Local';
+        if (badge) {
+          badge.className = 'inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 w-fit';
+          badge.textContent = 'Modo Local (Configura URL para Google Sites)';
+        }
+      }
+    }
+
+    async function loadData() {
+      let loaded = null;
+
+      // 1. Intentar leer URL de nube guardada
+      try {
+        const storedUrl = localStorage.getItem(CLOUD_URL_KEY);
+        if (storedUrl) cloudSyncUrl = storedUrl.trim();
+      } catch (e) {}
+
+      // 2. Intentar leer datos desde localStorage
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          loaded = JSON.parse(stored);
+        }
+      } catch (e) {
+        console.warn("localStorage restringido en este contenedor:", e);
+      }
+
+      // 3. Si no hubo en localStorage, probar IndexedDB
+      if (!loaded) {
+        const idbData = await loadFromIDB(STORAGE_KEY);
+        if (idbData) loaded = idbData;
+        const idbUrl = await loadFromIDB(CLOUD_URL_KEY);
+        if (!cloudSyncUrl && idbUrl) cloudSyncUrl = idbUrl;
+      }
+
+      // 4. Si tampoco hubo en IndexedDB, probar window.name (persiste al refrescar iframe)
+      if (!loaded) {
+        const wn = loadFromWindowName();
+        if (wn && wn.data) {
+          loaded = wn.data;
+          if (!cloudSyncUrl && wn.cloudUrl) cloudSyncUrl = wn.cloudUrl;
+        }
+      }
+
+      if (loaded) {
+        appData = normalizeState(loaded);
+      } else {
+        appData = normalizeState(defaultState);
+      }
+
+      saveLocalOnly();
+      renderAll();
+
+      // 5. Si hay URL de Google Apps Script configurada, descargar estado más reciente de la nube
+      if (cloudSyncUrl) {
+        await pullFromCloud(false);
+      } else {
+        updateSyncStatusUI('local');
+      }
+    }
+
+    function saveLocalOnly() {
+      const serialized = JSON.stringify(appData);
+      try {
+        localStorage.setItem(STORAGE_KEY, serialized);
+        if (cloudSyncUrl) localStorage.setItem(CLOUD_URL_KEY, cloudSyncUrl);
+      } catch (e) {}
+      saveToIDB(STORAGE_KEY, appData);
+      if (cloudSyncUrl) saveToIDB(CLOUD_URL_KEY, cloudSyncUrl);
+      saveToWindowName(appData, cloudSyncUrl);
+    }
+
+    function saveData() {
+      saveLocalOnly();
+      if (cloudSyncUrl) {
+        pushToCloud(false);
+      } else {
+        updateSyncStatusUI('local');
+      }
+    }
+
+    async function pushToCloud(manualShowToast = false) {
+      if (!cloudSyncUrl) {
+        if (manualShowToast) showToast('Primero ingresa la URL de Google Apps Script');
+        return false;
+      }
+      try {
+        isSyncing = true;
+        updateSyncStatusUI('syncing', 'Guardando...');
+        // Usamos text/plain para evitar preflight OPTIONS de CORS en Google Apps Script
+        const response = await fetch(cloudSyncUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'save', data: appData }),
+          redirect: 'follow'
+        });
+        const resJson = await response.json();
+        isSyncing = false;
+        if (resJson && resJson.status === 'ok') {
+          updateSyncStatusUI('cloud-ok', 'Sincronizado');
+          if (manualShowToast) showToast('Datos guardados en Google Sheets con éxito');
+          return true;
+        } else {
+          throw new Error(resJson?.message || 'Respuesta inválida');
+        }
+      } catch (err) {
+        isSyncing = false;
+        console.error('Error guardando en la nube:', err);
+        updateSyncStatusUI('cloud-error', 'Error al sincronizar');
+        if (manualShowToast) showToast('No se pudo conectar con Google Apps Script. Verifica la URL y permisos.');
+        return false;
+      }
+    }
+
+    async function pullFromCloud(manualShowToast = false) {
+      if (!cloudSyncUrl) {
+        if (manualShowToast) showToast('Primero ingresa la URL de Google Apps Script');
+        return false;
+      }
+      try {
+        isSyncing = true;
+        updateSyncStatusUI('syncing', 'Cargando nube...');
+        const sep = cloudSyncUrl.includes('?') ? '&' : '?';
+        const response = await fetch(`${cloudSyncUrl}${sep}action=load&t=${Date.now()}`, {
+          method: 'GET',
+          redirect: 'follow'
+        });
+        const resJson = await response.json();
+        isSyncing = false;
+
+        if (resJson && resJson.status === 'ok') {
+          if (resJson.data && typeof resJson.data === 'object') {
+            appData = normalizeState(resJson.data);
+            saveLocalOnly();
+            renderAll();
+            updateSyncStatusUI('cloud-ok', 'Sincronizado');
+            if (manualShowToast) showToast('Datos descargados desde Google Sheets');
+          } else {
+            // La hoja está vacía por primera vez: subimos el estado actual
+            await pushToCloud(false);
+            if (manualShowToast) showToast('Conectado: Se inicializó la hoja con tus datos actuales');
+          }
+          return true;
+        } else {
+          throw new Error(resJson?.message || 'Error al leer datos');
+        }
+      } catch (err) {
+        isSyncing = false;
+        console.error('Error descargando de la nube:', err);
+        updateSyncStatusUI('cloud-error', 'Sin conexión nube');
+        if (manualShowToast) showToast('Error al leer desde Google Apps Script. Verifica que el acceso sea "Cualquier persona".');
+        return false;
+      }
+    }
+
+    async function saveAndTestCloudUrl() {
+      const input = document.getElementById('cloud-sync-url-input');
+      const val = (input?.value || '').trim();
+      if (!val) {
+        cloudSyncUrl = '';
+        try { localStorage.removeItem(CLOUD_URL_KEY); } catch (e) {}
+        saveLocalOnly();
+        updateSyncStatusUI('local');
+        showToast('Sincronización en la nube desactivada');
+        return;
+      }
+      cloudSyncUrl = val;
+      saveLocalOnly();
+      const ok = await pullFromCloud(true);
+      if (ok) {
+        await pushToCloud(false);
+      }
+    }
+
+    /* ========================================================
+       CHARTS CONTROLLER (Chart.js)
+       ======================================================== */
+    let expensesChart = null;
+    let distributionChart = null;
+
+    function initCharts() {
+      const ctxExpenses = document.getElementById('expensesChart');
+      const ctxDist = document.getElementById('costDistributionChart');
+
+      if (ctxExpenses) {
+        expensesChart = new Chart(ctxExpenses, {
+          type: 'bar',
+          data: { labels: [], datasets: [] },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(c) {
+                    return '$' + Number(c.raw).toLocaleString('es-AR');
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { display: false, color: '#334155' },
+                ticks: { color: '#94a3b8', font: { size: 11 } }
+              },
+              y: {
+                grid: { color: 'rgba(51, 65, 85, 0.4)' },
+                ticks: {
+                  color: '#94a3b8',
+                  font: { size: 11 },
+                  callback: (val) => '$' + (val >= 1000 ? (val / 1000) + 'k' : val)
+                }
+              }
+            }
+          }
+        });
+      }
+
+      if (ctxDist) {
+        distributionChart = new Chart(ctxDist, {
+          type: 'doughnut',
+          data: {
+            labels: ['Combustible', 'Service', 'Averías', 'Otros'],
+            datasets: [{
+              data: [0, 0, 0, 0],
+              backgroundColor: ['#3b82f6', '#10b981', '#f43f5e', '#f59e0b'],
+              borderWidth: 2,
+              borderColor: '#1e293b'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    const label = context.label || '';
+                    const val = Number(context.raw).toLocaleString('es-AR');
+                    return `${label}: $${val}`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    function updateCharts() {
+      if (!expensesChart || !distributionChart) return;
+
+      // Group expenses by last 6 calendar months
+      const months = [];
+      const monthTotals = {};
+      const now = new Date();
+
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const label = d.toLocaleDateString('es-ES', { month: 'short' }).toUpperCase();
+        months.push({ key, label });
+        monthTotals[key] = 0;
+      }
+
+      // Sum Fuel
+      appData.fuel.forEach(f => {
+        if (!f.date) return;
+        const key = f.date.substring(0, 7);
+        if (monthTotals[key] !== undefined) monthTotals[key] += Number(f.cost) || 0;
+      });
+      // Sum Service
+      appData.service.forEach(s => {
+        if (!s.date) return;
+        const key = s.date.substring(0, 7);
+        if (monthTotals[key] !== undefined) monthTotals[key] += Number(s.cost) || 0;
+      });
+      // Sum Issues
+      appData.issues.forEach(i => {
+        const date = i.resolvedDate || i.date;
+        if (!date) return;
+        const key = date.substring(0, 7);
+        if (monthTotals[key] !== undefined) monthTotals[key] += Number(i.cost) || 0;
+      });
+      // Sum Expenses
+      appData.expenses.forEach(e => {
+        if (!e.date) return;
+        const key = e.date.substring(0, 7);
+        if (monthTotals[key] !== undefined) monthTotals[key] += Number(e.amount) || 0;
+      });
+
+      expensesChart.data.labels = months.map(m => m.label);
+      expensesChart.data.datasets = [{
+        data: months.map(m => monthTotals[m.key]),
+        backgroundColor: '#3b82f6',
+        borderRadius: 8
+      }];
+      expensesChart.update();
+
+      // Doughnut distribution
+      const totalFuel = appData.fuel.reduce((acc, c) => acc + (Number(c.cost) || 0), 0);
+      const totalService = appData.service.reduce((acc, c) => acc + (Number(c.cost) || 0), 0);
+      const totalIssues = appData.issues.reduce((acc, c) => acc + (Number(c.cost) || 0), 0);
+      const totalOther = appData.expenses.reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
+
+      const totalAll = totalFuel + totalService + totalIssues + totalOther;
+
+      distributionChart.data.datasets[0].data = [totalFuel, totalService, totalIssues, totalOther];
+      distributionChart.update();
+
+      // Legend
+      const legendEl = document.getElementById('distribution-legend');
+      if (legendEl) {
+        const getPct = (val) => totalAll > 0 ? ((val / totalAll) * 100).toFixed(0) + '%' : '0%';
+        legendEl.innerHTML = `
+          <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> Combustible: <b>${getPct(totalFuel)}</b></div>
+          <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Service: <b>${getPct(totalService)}</b></div>
+          <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Averías: <b>${getPct(totalIssues)}</b></div>
+          <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Otros: <b>${getPct(totalOther)}</b></div>
+        `;
+      }
+    }
+
+    /* ========================================================
+       COMPUTATIONS: CONSUMPTION & METRICS
+       ======================================================== */
+    function getLatestOdometer() {
+      let maxKm = 0;
+      appData.fuel.forEach(f => { if (Number(f.km) > maxKm) maxKm = Number(f.km); });
+      appData.service.forEach(s => { if (Number(s.km) > maxKm) maxKm = Number(s.km); });
+      if (Array.isArray(appData.trips)) {
+        appData.trips.forEach(t => {
+          if (Number(t.endKm) > maxKm) maxKm = Number(t.endKm);
+          else if (Number(t.startKm) > maxKm) maxKm = Number(t.startKm);
+        });
+      }
+      return maxKm;
+    }
+
+    // Calculates average fuel consumption based on full-tank refuels
+    function calculateAverageConsumption() {
+      const sortedFuel = [...appData.fuel].sort((a, b) => Number(a.km) - Number(b.km));
+      let totalDistance = 0;
+      let totalLiters = 0;
+
+      for (let i = 1; i < sortedFuel.length; i++) {
+        const prev = sortedFuel[i - 1];
+        const curr = sortedFuel[i];
+        if (curr.fullTank && prev.fullTank) {
+          const dist = Number(curr.km) - Number(prev.km);
+          if (dist > 0 && Number(curr.liters) > 0) {
+            totalDistance += dist;
+            totalLiters += Number(curr.liters);
+          }
+        }
+      }
+
+      if (totalDistance === 0 || totalLiters === 0) return null;
+
+      const isKmL = (appData.vehicle.unit || 'kml') === 'kml';
+      if (isKmL) {
+        return (totalDistance / totalLiters).toFixed(2); // km/l
+      } else {
+        return ((totalLiters / totalDistance) * 100).toFixed(2); // l/100km
+      }
+    }
+
+    // Consumption per individual refill
+    function getFuelEntryConsumption(index, sortedFuel) {
+      if (index === 0) return null;
+      const prev = sortedFuel[index - 1];
+      const curr = sortedFuel[index];
+      if (curr.fullTank && prev.fullTank) {
+        const dist = Number(curr.km) - Number(prev.km);
+        if (dist > 0 && Number(curr.liters) > 0) {
+          const isKmL = (appData.vehicle.unit || 'kml') === 'kml';
+          if (isKmL) {
+            return (dist / Number(curr.liters)).toFixed(2) + ' km/l';
+          } else {
+            return ((Number(curr.liters) / dist) * 100).toFixed(2) + ' l/100km';
+          }
+        }
+      }
+      return null;
+    }
+
+    /* ========================================================
+       RENDER ENGINE
+       ======================================================== */
+    function renderAll() {
+      renderVehicleInfo();
+      renderDashboardMetrics();
+      renderReminders();
+      renderTrips();
+      renderFuelTable();
+      renderServices();
+      renderIssues();
+      renderExpenses();
+      renderHistory();
+      updateCharts();
+      lucide.createIcons();
+    }
+
+    function renderVehicleInfo() {
+      const el = document.getElementById('header-car-info');
+      const v = appData.vehicle;
+      if (el) {
+        el.textContent = `${v.model || 'Mi Auto'} • ${v.year || ''} • [${v.plate || '---'}]`;
+      }
+    }
+
+    function renderDashboardMetrics() {
+      // 1. Odometer
+      const currentKm = getLatestOdometer();
+      document.getElementById('metric-odometer').textContent = currentKm.toLocaleString('es-AR');
+
+      // 2. Consumption
+      const avgCons = calculateAverageConsumption();
+      const unit = (appData.vehicle.unit || 'kml') === 'kml' ? 'km/l' : 'l/100km';
+      document.getElementById('metric-consumption-unit').textContent = unit;
+      if (avgCons !== null) {
+        document.getElementById('metric-consumption').textContent = avgCons;
+      } else {
+        document.getElementById('metric-consumption').textContent = '--';
+      }
+
+      // 3. Expenses
+      const now = new Date();
+      const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const currentYearKey = `${now.getFullYear()}`;
+
+      let monthTotal = 0;
+      let yearTotal = 0;
+
+      const sumItem = (date, cost) => {
+        if (!date || !cost) return;
+        const c = Number(cost) || 0;
+        if (date.startsWith(currentMonthKey)) monthTotal += c;
+        if (date.startsWith(currentYearKey)) yearTotal += c;
+      };
+
+      appData.fuel.forEach(f => sumItem(f.date, f.cost));
+      appData.service.forEach(s => sumItem(s.date, s.cost));
+      appData.issues.forEach(i => sumItem(i.resolvedDate || i.date, i.cost));
+      appData.expenses.forEach(e => sumItem(e.date, e.amount));
+
+      document.getElementById('metric-month-expense').textContent = monthTotal.toLocaleString('es-AR');
+      document.getElementById('metric-year-expense').textContent = `Año total: $${yearTotal.toLocaleString('es-AR')}`;
+
+      // 4. Next Service
+      const upcomingServices = appData.service
+        .filter(s => s.nextKm || s.nextDate)
+        .sort((a, b) => (Number(a.nextKm) || 9999999) - (Number(b.nextKm) || 9999999));
+
+      const nextServElKm = document.getElementById('metric-next-service-km');
+      const nextServElDate = document.getElementById('metric-next-service-date');
+      const badge = document.getElementById('metric-service-badge');
+
+      if (upcomingServices.length > 0) {
+        const next = upcomingServices[0];
+        let kmDiffText = '';
+        if (next.nextKm) {
+          const diff = Number(next.nextKm) - currentKm;
+          if (diff <= 0) {
+            nextServElKm.innerHTML = `<span class="text-rose-400">¡Vencido (${next.nextKm} km)!</span>`;
+            badge.className = "mt-2 inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 w-fit";
+            badge.textContent = "Urgente realizar cambio";
+          } else {
+            nextServElKm.textContent = `${next.nextKm.toLocaleString('es-AR')} km`;
+            kmDiffText = `Faltan ${diff.toLocaleString('es-AR')} km`;
+            badge.className = "mt-2 inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 w-fit";
+            badge.textContent = kmDiffText;
+          }
+        } else {
+          nextServElKm.textContent = next.type;
+        }
+
+        if (next.nextDate) {
+          nextServElDate.textContent = `Fecha límite: ${next.nextDate}`;
+        } else {
+          nextServElDate.textContent = next.type;
+        }
+      } else {
+        nextServElKm.textContent = "Al día";
+        nextServElDate.textContent = "Sin alertas programadas";
+        badge.className = "mt-2 inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded bg-slate-700 text-slate-300 w-fit";
+        badge.textContent = "Sin pendientes";
+      }
+
+      // Recent Activity in Dashboard
+      renderRecentActivity();
+    }
+
+    function renderReminders() {
+      const container = document.getElementById('dashboard-reminders-container');
+      container.innerHTML = '';
+      const currentKm = getLatestOdometer();
+      const today = new Date().toISOString().split('T')[0];
+
+      const alerts = [];
+
+      // Check upcoming / expired service by km
+      appData.service.forEach(s => {
+        if (s.nextKm && Number(s.nextKm) <= currentKm + 1000) {
+          const isOverdue = Number(s.nextKm) <= currentKm;
+          alerts.push({
+            type: isOverdue ? 'danger' : 'warning',
+            title: isOverdue ? `¡Service Vencido! ${s.type}` : `Próximo Service Cercano: ${s.type}`,
+            desc: `Programado a los ${s.nextKm} km (Odómetro actual: ${currentKm} km).`,
+            icon: 'wrench'
+          });
+        }
+      });
+
+      // Check documentation due dates (VTV, seguro)
+      appData.expenses.forEach(e => {
+        if (e.dueDate) {
+          const due = new Date(e.dueDate);
+          const now = new Date(today);
+          const diffDays = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+
+          if (diffDays <= 30) {
+            const isOverdue = diffDays < 0;
+            alerts.push({
+              type: isOverdue ? 'danger' : 'warning',
+              title: isOverdue ? `¡Vencimiento Caducado! ${e.cat}` : `Próximo Vencimiento: ${e.cat}`,
+              desc: `${e.detail || ''} - Vence: ${e.dueDate} (${isOverdue ? 'hace ' + Math.abs(diffDays) + ' días' : 'en ' + diffDays + ' días'}).`,
+              icon: 'alert-triangle'
+            });
+          }
+        }
+      });
+
+      // Check pending issues
+      const pendingIssues = appData.issues.filter(i => i.status !== 'Resuelto');
+      if (pendingIssues.length > 0) {
+        alerts.push({
+          type: 'info',
+          title: `${pendingIssues.length} Avería(s) o arreglo(s) pendiente(s)`,
+          desc: pendingIssues.map(p => p.title).join(', '),
+          icon: 'alert-octagon'
+        });
+      }
+
+      alerts.forEach(a => {
+        const bg = a.type === 'danger' ? 'bg-rose-500/10 border-rose-500/30 text-rose-300' :
+                   a.type === 'warning' ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' :
+                   'bg-blue-500/10 border-blue-500/30 text-blue-300';
+        const iconColor = a.type === 'danger' ? 'text-rose-400' :
+                          a.type === 'warning' ? 'text-amber-400' : 'text-blue-400';
+
+        const div = document.createElement('div');
+        div.className = `p-3.5 rounded-xl border flex items-start gap-3 text-xs ${bg}`;
+        div.innerHTML = `
+          <i data-lucide="${a.icon}" class="w-4 h-4 shrink-0 mt-0.5 ${iconColor}"></i>
+          <div class="flex-1">
+            <b class="font-semibold text-white block">${a.title}</b>
+            <span class="text-slate-300">${a.desc}</span>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function renderRecentActivity() {
+      const container = document.getElementById('recent-activity-list');
+      container.innerHTML = '';
+
+      const allRecords = getAllChronologicalEvents().slice(0, 5);
+
+      if (allRecords.length === 0) {
+        container.innerHTML = '<div class="text-xs text-slate-500 py-3 text-center">No hay registros aún. Usa los botones de arriba para agregar una carga, service, avería o gasto.</div>';
+        return;
+      }
+
+      allRecords.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 transition';
+        div.innerHTML = `
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="p-2 rounded-lg ${getCategoryBg(item.category)} text-white shrink-0">
+              <i data-lucide="${getCategoryIcon(item.category)}" class="w-4 h-4"></i>
+            </div>
+            <div class="min-w-0">
+              <div class="text-xs font-semibold text-white truncate">${item.title}</div>
+              <div class="text-[11px] text-slate-400 truncate">${item.date} • ${item.sub}</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="text-xs font-bold text-white">$${Number(item.cost || 0).toLocaleString('es-AR')}</span>
+            <button type="button" onclick="editRecord('${item.category}', '${item.id}')" class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition" title="Editar">
+              <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+            </button>
+            <button type="button" onclick="deleteRecord('${item.category}', '${item.id}')" class="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-slate-800 rounded-lg transition" title="Eliminar">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function renderTrips() {
+      const tbody = document.getElementById('trips-table-body');
+      const empty = document.getElementById('trips-empty');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      const tripsList = Array.isArray(appData.trips) ? appData.trips : [];
+      const sorted = [...tripsList].sort((a, b) => new Date(b.date) - new Date(a.date) || Number(b.endKm || 0) - Number(a.endKm || 0));
+
+      // Métricas de Recorridos
+      const now = new Date();
+      const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const currentYearKey = `${now.getFullYear()}`;
+
+      let monthKm = 0;
+      let yearKm = 0;
+
+      tripsList.forEach(t => {
+        const d = Number(t.distance) || (Number(t.endKm || 0) - Number(t.startKm || 0)) || 0;
+        if (t.date && t.date.startsWith(currentMonthKey)) monthKm += d;
+        if (t.date && t.date.startsWith(currentYearKey)) yearKm += d;
+      });
+
+      const dayOfMonth = now.getDate() || 1;
+      const dailyAvg = (monthKm / dayOfMonth).toFixed(1);
+
+      const elMonth = document.getElementById('trip-metric-month');
+      const elYear = document.getElementById('trip-metric-year');
+      const elDaily = document.getElementById('trip-metric-daily');
+      const elCount = document.getElementById('trip-metric-count');
+
+      if (elMonth) elMonth.textContent = monthKm.toLocaleString('es-AR');
+      if (elYear) elYear.textContent = yearKm.toLocaleString('es-AR');
+      if (elDaily) elDaily.textContent = dailyAvg;
+      if (elCount) elCount.textContent = tripsList.length;
+
+      if (sorted.length === 0) {
+        if (empty) empty.classList.remove('hidden');
+        return;
+      }
+      if (empty) empty.classList.add('hidden');
+
+      sorted.forEach(t => {
+        const dist = Number(t.distance) || (Number(t.endKm || 0) - Number(t.startKm || 0)) || 0;
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-800/50 transition";
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-medium text-white">${t.date || '--'}</td>
+          <td class="py-3 px-4">${Number(t.startKm || 0).toLocaleString('es-AR')} km</td>
+          <td class="py-3 px-4 font-semibold text-white">${Number(t.endKm || 0).toLocaleString('es-AR')} km</td>
+          <td class="py-3 px-4 font-bold text-cyan-400">+${Number(dist).toLocaleString('es-AR')} km</td>
+          <td class="py-3 px-4">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+              ${t.purpose || 'General'}
+            </span>
+          </td>
+          <td class="py-3 px-4">
+            ${t.route ? `<span class="text-white block font-medium">${t.route}</span>` : ''}
+            ${t.notes ? `<span class="text-[11px] text-slate-400 block">${t.notes}</span>` : ''}
+            ${!t.route && !t.notes ? '<span class="text-slate-500 text-[11px]">--</span>' : ''}
+          </td>
+          <td class="py-3 px-4 text-right">
+            <div class="flex items-center justify-end gap-1">
+              <button type="button" onclick="editTrip('${t.id}')" class="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-semibold text-slate-200 transition inline-flex items-center gap-1" title="Editar">
+                <i data-lucide="edit-2" class="w-3.5 h-3.5"></i> Editar
+              </button>
+              <button type="button" onclick="deleteRecord('trips', '${t.id}')" class="p-1.5 hover:bg-slate-700 rounded-lg text-rose-400 hover:text-rose-300 transition" title="Eliminar">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderFuelTable() {
+      const tbody = document.getElementById('fuel-table-body');
+      const empty = document.getElementById('fuel-empty');
+      tbody.innerHTML = '';
+
+      const sorted = [...appData.fuel].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      if (sorted.length === 0) {
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      // Natural chronological for consumption
+      const ascSorted = [...appData.fuel].sort((a, b) => Number(a.km) - Number(b.km));
+
+      sorted.forEach(f => {
+        const ascIdx = ascSorted.findIndex(x => String(x.id) === String(f.id));
+        const consumptionStr = getFuelEntryConsumption(ascIdx, ascSorted);
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-800/50 transition";
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-medium text-white">${f.date}</td>
+          <td class="py-3 px-4">${Number(f.km).toLocaleString('es-AR')} km</td>
+          <td class="py-3 px-4">${f.liters} L</td>
+          <td class="py-3 px-4">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] bg-blue-500/10 text-blue-400 border border-blue-500/20">
+              ${f.type}
+            </span>
+            ${f.station ? `<span class="block text-[11px] text-slate-500">${f.station}</span>` : ''}
+          </td>
+          <td class="py-3 px-4 font-semibold text-emerald-400">$${Number(f.cost).toLocaleString('es-AR')}</td>
+          <td class="py-3 px-4">
+            ${consumptionStr ? `<span class="text-xs font-medium text-amber-400">${consumptionStr}</span>` : '<span class="text-slate-500 text-[11px]">--</span>'}
+          </td>
+          <td class="py-3 px-4 text-right">
+            <div class="flex items-center justify-end gap-1">
+              <button type="button" onclick="editFuel('${f.id}')" class="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-semibold text-slate-200 transition inline-flex items-center gap-1" title="Editar"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i> Editar</button>
+              <button type="button" onclick="deleteRecord('fuel', '${f.id}')" class="p-1.5 hover:bg-slate-700 rounded-lg text-rose-400 hover:text-rose-300 transition" title="Eliminar"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderServices() {
+      const container = document.getElementById('service-cards-container');
+      const empty = document.getElementById('service-empty');
+      container.innerHTML = '';
+
+      if (appData.service.length === 0) {
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      const sorted = [...appData.service].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      sorted.forEach(s => {
+        const card = document.createElement('div');
+        card.className = "bg-slate-800/50 border border-slate-700/80 rounded-2xl p-5 flex flex-col justify-between hover:border-slate-600 transition shadow-sm";
+        card.innerHTML = `
+          <div>
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <i data-lucide="wrench" class="w-3.5 h-3.5"></i> ${s.type}
+              </div>
+              <span class="text-sm font-bold text-white">$${Number(s.cost).toLocaleString('es-AR')}</span>
+            </div>
+            
+            <div class="text-xs text-slate-300 space-y-1 mt-3">
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400">Fecha:</span>
+                <span class="font-medium text-white">${s.date}</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400">Kilometraje:</span>
+                <span class="font-medium text-white">${Number(s.km).toLocaleString('es-AR')} km</span>
+              </div>
+              ${s.workshop ? `
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400">Taller:</span>
+                <span class="text-slate-200">${s.workshop}</span>
+              </div>` : ''}
+            </div>
+
+            ${(s.nextKm || s.nextDate) ? `
+            <div class="mt-4 p-2.5 rounded-xl bg-slate-900/80 border border-slate-700 text-xs text-slate-300">
+              <span class="font-semibold text-slate-400 block text-[10px] uppercase">Alerta programada:</span>
+              ${s.nextKm ? `<span>Próximo a los <b>${Number(s.nextKm).toLocaleString('es-AR')} km</b></span>` : ''}
+              ${s.nextDate ? `<span class="block text-[11px] text-slate-400">Límite: ${s.nextDate}</span>` : ''}
+            </div>` : ''}
+
+            ${s.notes ? `<p class="mt-3 text-xs text-slate-400 italic bg-slate-900/40 p-2 rounded-lg">${s.notes}</p>` : ''}
+          </div>
+
+          <div class="mt-4 pt-3 border-t border-slate-700/60 flex items-center justify-end gap-2">
+            <button type="button" onclick="editService('${s.id}')" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-xs font-semibold rounded-lg text-slate-200 transition inline-flex items-center gap-1.5">
+              <i data-lucide="edit-2" class="w-3.5 h-3.5"></i> Editar
+            </button>
+            <button type="button" onclick="deleteRecord('service', '${s.id}')" class="px-2.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 text-xs font-semibold rounded-lg transition inline-flex items-center gap-1" title="Eliminar">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Borrar
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function renderIssues() {
+      const container = document.getElementById('issues-cards-container');
+      const empty = document.getElementById('issues-empty');
+      container.innerHTML = '';
+
+      if (appData.issues.length === 0) {
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      const sorted = [...appData.issues].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      sorted.forEach(iss => {
+        const isResolved = iss.status === 'Resuelto';
+        const isWorkshop = iss.status === 'En Taller';
+        const badgeColor = isResolved ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                           isWorkshop ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                           'bg-rose-500/10 text-rose-400 border-rose-500/20';
+
+        const card = document.createElement('div');
+        card.className = "bg-slate-800/50 border border-slate-700/80 rounded-2xl p-5 flex flex-col justify-between hover:border-slate-600 transition shadow-sm";
+        card.innerHTML = `
+          <div>
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <select onchange="changeIssueStatus('${iss.id}', this.value)" class="px-2 py-0.5 rounded-md text-xs font-semibold border cursor-pointer focus:outline-none ${badgeColor} bg-slate-900">
+                <option value="Pendiente" ${iss.status === 'Pendiente' ? 'selected' : ''}>⚠️ Pendiente</option>
+                <option value="En Taller" ${iss.status === 'En Taller' ? 'selected' : ''}>🔧 En Taller</option>
+                <option value="Resuelto" ${iss.status === 'Resuelto' ? 'selected' : ''}>✅ Resuelto</option>
+              </select>
+              <span class="text-sm font-bold text-white">${Number(iss.cost) > 0 ? '$' + Number(iss.cost).toLocaleString('es-AR') : '--'}</span>
+            </div>
+
+            <h4 class="text-sm font-bold text-white mt-1">${iss.title}</h4>
+            
+            <div class="text-xs text-slate-300 space-y-1 mt-3">
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400">Detectado:</span>
+                <span class="text-slate-200">${iss.date}</span>
+              </div>
+              ${iss.resolvedDate ? `
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400">Solucionado:</span>
+                <span class="text-emerald-400 font-medium">${iss.resolvedDate}</span>
+              </div>` : ''}
+            </div>
+
+            ${iss.notes ? `<div class="mt-3 text-xs text-slate-300 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">${iss.notes}</div>` : ''}
+          </div>
+
+          <div class="mt-4 pt-3 border-t border-slate-700/60 flex items-center justify-end gap-2">
+            <button type="button" onclick="editIssue('${iss.id}')" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-xs font-semibold rounded-lg text-slate-200 transition inline-flex items-center gap-1.5">
+              <i data-lucide="edit-2" class="w-3.5 h-3.5"></i> Editar
+            </button>
+            <button type="button" onclick="deleteRecord('issues', '${iss.id}')" class="px-2.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 text-xs font-semibold rounded-lg transition inline-flex items-center gap-1" title="Eliminar">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Borrar
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function renderExpenses() {
+      const container = document.getElementById('expenses-cards-container');
+      const empty = document.getElementById('expenses-empty');
+      container.innerHTML = '';
+
+      if (appData.expenses.length === 0) {
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      const sorted = [...appData.expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      sorted.forEach(exp => {
+        const card = document.createElement('div');
+        card.className = "bg-slate-800/50 border border-slate-700/80 rounded-2xl p-5 flex flex-col justify-between hover:border-slate-600 transition shadow-sm";
+        card.innerHTML = `
+          <div>
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                ${exp.cat}
+              </span>
+              <span class="text-sm font-bold text-white">$${Number(exp.amount).toLocaleString('es-AR')}</span>
+            </div>
+
+            <div class="text-sm font-semibold text-white mt-1">${exp.detail || exp.cat}</div>
+
+            <div class="text-xs text-slate-300 space-y-1 mt-3">
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400">Fecha de pago:</span>
+                <span class="text-slate-200">${exp.date}</span>
+              </div>
+              ${exp.dueDate ? `
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400">Vencimiento:</span>
+                <span class="font-medium text-amber-300">${exp.dueDate}</span>
+              </div>` : ''}
+            </div>
+          </div>
+
+          <div class="mt-4 pt-3 border-t border-slate-700/60 flex items-center justify-end gap-2">
+            <button type="button" onclick="editExpense('${exp.id}')" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-xs font-semibold rounded-lg text-slate-200 transition inline-flex items-center gap-1.5">
+              <i data-lucide="edit-2" class="w-3.5 h-3.5"></i> Editar
+            </button>
+            <button type="button" onclick="deleteRecord('expenses', '${exp.id}')" class="px-2.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 text-xs font-semibold rounded-lg transition inline-flex items-center gap-1" title="Eliminar">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Borrar
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    /* ========================================================
+       CHRONOLOGICAL HISTORY & FILTERS
+       ======================================================== */
+    let currentHistoryFilter = 'all';
+
+    function getAllChronologicalEvents() {
+      const list = [];
+
+      if (Array.isArray(appData.trips)) {
+        appData.trips.forEach(t => {
+          const d = Number(t.distance) || (Number(t.endKm || 0) - Number(t.startKm || 0)) || 0;
+          list.push({
+            id: t.id,
+            category: 'trips',
+            title: `Recorrido: +${d.toLocaleString('es-AR')} km (${t.purpose || 'General'})`,
+            sub: `${Number(t.startKm || 0).toLocaleString('es-AR')} km &rarr; ${Number(t.endKm || 0).toLocaleString('es-AR')} km`,
+            date: t.date,
+            cost: 0,
+            notes: [t.route, t.notes].filter(Boolean).join(' • ')
+          });
+        });
+      }
+
+      appData.fuel.forEach(f => {
+        list.push({
+          id: f.id,
+          category: 'fuel',
+          title: `Carga Combustible (${f.type})`,
+          sub: `${f.liters} L • ${Number(f.km).toLocaleString('es-AR')} km`,
+          date: f.date,
+          cost: f.cost,
+          notes: f.notes || f.station
+        });
+      });
+
+      appData.service.forEach(s => {
+        list.push({
+          id: s.id,
+          category: 'service',
+          title: `Service: ${s.type}`,
+          sub: `${Number(s.km).toLocaleString('es-AR')} km • ${s.workshop || 'Mecánico'}`,
+          date: s.date,
+          cost: s.cost,
+          notes: s.notes
+        });
+      });
+
+      appData.issues.forEach(i => {
+        list.push({
+          id: i.id,
+          category: 'issues',
+          title: `Avería: ${i.title}`,
+          sub: `Estado: ${i.status}`,
+          date: i.resolvedDate || i.date,
+          cost: i.cost,
+          notes: i.notes
+        });
+      });
+
+      appData.expenses.forEach(e => {
+        list.push({
+          id: e.id,
+          category: 'expenses',
+          title: `Gasto: ${e.cat}`,
+          sub: e.detail || '',
+          date: e.date,
+          cost: e.amount,
+          notes: e.dueDate ? `Vence: ${e.dueDate}` : ''
+        });
+      });
+
+      return list.sort((a, b) => new Date(b.date) - new Date(a.date));
+    }
+
+    function renderHistory() {
+      const container = document.getElementById('history-timeline');
+      const empty = document.getElementById('history-empty');
+      const searchVal = (document.getElementById('history-search')?.value || '').toLowerCase();
+      container.innerHTML = '';
+
+      let events = getAllChronologicalEvents();
+
+      if (currentHistoryFilter !== 'all') {
+        events = events.filter(e => e.category === currentHistoryFilter);
+      }
+
+      if (searchVal) {
+        events = events.filter(e =>
+          e.title.toLowerCase().includes(searchVal) ||
+          e.sub.toLowerCase().includes(searchVal) ||
+          (e.notes && e.notes.toLowerCase().includes(searchVal))
+        );
+      }
+
+      if (events.length === 0) {
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      events.forEach(item => {
+        const itemEl = document.createElement('div');
+        itemEl.className = "p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-slate-700 transition";
+        itemEl.innerHTML = `
+          <div class="flex items-center gap-3.5">
+            <div class="p-2.5 rounded-xl ${getCategoryBg(item.category)} text-white shrink-0">
+              <i data-lucide="${getCategoryIcon(item.category)}" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="text-sm font-bold text-white">${item.title}</div>
+              <div class="text-xs text-slate-400 mt-0.5">${item.date} • ${item.sub}</div>
+              ${item.notes ? `<div class="text-xs text-slate-500 mt-1">${item.notes}</div>` : ''}
+            </div>
+          </div>
+          <div class="flex sm:flex-col items-center sm:items-end justify-between gap-2 shrink-0 border-t sm:border-t-0 border-slate-800 pt-2 sm:pt-0">
+            <span class="text-sm font-extrabold text-white block">$${Number(item.cost || 0).toLocaleString('es-AR')}</span>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="editRecord('${item.category}', '${item.id}')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 rounded-lg inline-flex items-center gap-1 transition">
+                <i data-lucide="edit-2" class="w-3.5 h-3.5"></i> Editar
+              </button>
+              <button type="button" onclick="deleteRecord('${item.category}', '${item.id}')" class="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-xs font-semibold text-rose-400 hover:text-rose-300 rounded-lg inline-flex items-center gap-1 transition">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Borrar
+              </button>
+            </div>
+          </div>
+        `;
+        container.appendChild(itemEl);
+      });
+      lucide.createIcons();
+    }
+
+    function filterHistory(type) {
+      currentHistoryFilter = type;
+      document.querySelectorAll('.history-filter-btn').forEach(btn => {
+        if (btn.dataset.filter === type) {
+          btn.className = "history-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white";
+        } else {
+          btn.className = "history-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700";
+        }
+      });
+      renderHistory();
+    }
+
+    function getCategoryIcon(cat) {
+      switch (cat) {
+        case 'trips': return 'navigation';
+        case 'fuel': return 'fuel';
+        case 'service': return 'wrench';
+        case 'issues': return 'alert-octagon';
+        case 'expenses': return 'receipt';
+        default: return 'circle';
+      }
+    }
+
+    function getCategoryBg(cat) {
+      switch (cat) {
+        case 'trips': return 'bg-cyan-600/90 shadow-md shadow-cyan-600/20';
+        case 'fuel': return 'bg-blue-600/90 shadow-md shadow-blue-600/20';
+        case 'service': return 'bg-emerald-600/90 shadow-md shadow-emerald-600/20';
+        case 'issues': return 'bg-rose-600/90 shadow-md shadow-rose-600/20';
+        case 'expenses': return 'bg-amber-600/90 shadow-md shadow-amber-600/20';
+        default: return 'bg-slate-700';
+      }
+    }
+
+    /* ========================================================
+       MODAL CONTROLLERS, CUSTOM CONFIRM & FORM HANDLERS
+       ======================================================== */
+    const MODAL_CONFIG = {
+      trips: { prefix: 'trip', newTitle: 'Registrar Recorrido', editTitle: 'Editar Recorrido' },
+      fuel: { prefix: 'fuel', newTitle: 'Registrar Carga de Combustible', editTitle: 'Editar Carga de Combustible' },
+      service: { prefix: 'service', newTitle: 'Registrar Mantenimiento / Service', editTitle: 'Editar Mantenimiento / Service' },
+      issues: { prefix: 'issue', newTitle: 'Registrar Avería o Falla', editTitle: 'Editar Avería o Falla' },
+      expenses: { prefix: 'expense', newTitle: 'Registrar Gasto o Documento', editTitle: 'Editar Gasto o Documento' }
+    };
+
+    function openModal(id, isEdit = false) {
+      const modal = document.getElementById(`modal-${id}`);
+      if (!modal) return;
+
+      const cfg = MODAL_CONFIG[id];
+      if (cfg && !isEdit) {
+        // Limpiar cualquier edición previa cuando se abre para un registro nuevo
+        const form = document.getElementById(`form-${id}`);
+        if (form) form.reset();
+        const idField = document.getElementById(`${cfg.prefix}-id`);
+        if (idField) idField.value = '';
+        const dateInput = document.getElementById(`${cfg.prefix}-date`);
+        if (dateInput) {
+          dateInput.value = new Date().toISOString().split('T')[0];
+        }
+
+        // Si es trips, autocompletar Km Inicial con el último odómetro
+        if (id === 'trips') {
+          const currentOdo = getLatestOdometer();
+          const startKmInput = document.getElementById('trip-start-km');
+          if (startKmInput) startKmInput.value = currentOdo > 0 ? currentOdo : '';
+          const endKmInput = document.getElementById('trip-end-km');
+          if (endKmInput) endKmInput.value = '';
+          const distInput = document.getElementById('trip-distance');
+          if (distInput) distInput.value = '';
+          setTripPurpose('Trabajo');
+        }
+      }
+
+      if (id === 'odometer') {
+        const currentOdo = getLatestOdometer();
+        const qVal = document.getElementById('quick-odometer-val');
+        if (qVal) qVal.value = currentOdo > 0 ? currentOdo : '';
+        const qDate = document.getElementById('quick-odometer-date');
+        if (qDate) qDate.value = new Date().toISOString().split('T')[0];
+        const qHint = document.getElementById('quick-odometer-hint');
+        if (qHint) qHint.textContent = `Último odómetro registrado: ${currentOdo.toLocaleString('es-AR')} km`;
+      }
+
+      if (cfg) {
+        const titleEl = document.getElementById(`modal-title-${id}`);
+        if (titleEl) {
+          titleEl.textContent = isEdit ? cfg.editTitle : cfg.newTitle;
+        }
+      }
+
+      modal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeModal(id) {
+      const modal = document.getElementById(`modal-${id}`);
+      if (modal) modal.classList.add('hidden');
+      const form = document.getElementById(`form-${id}`);
+      if (form) {
+        form.reset();
+      }
+      const cfg = MODAL_CONFIG[id];
+      if (cfg) {
+        const idField = document.getElementById(`${cfg.prefix}-id`);
+        if (idField) idField.value = '';
+      }
+    }
+
+    function setSelectValueSafely(selectId, value) {
+      const selectEl = document.getElementById(selectId);
+      if (!selectEl || value === undefined || value === null) return;
+      const exists = Array.from(selectEl.options).some(opt => opt.value === value);
+      if (!exists && String(value).trim() !== '') {
+        const newOpt = document.createElement('option');
+        newOpt.value = value;
+        newOpt.textContent = value;
+        selectEl.appendChild(newOpt);
+      }
+      selectEl.value = value;
+    }
+
+    function calculateFuelCost() {
+      // Reservado por si se desea calcular en base a precio por litro
+    }
+
+    // Custom Confirmation Modal (Reemplaza window.confirm bloqueado en Google Sites)
+    let pendingConfirmAction = null;
+
+    function askConfirmation(title, message, onConfirm, confirmBtnText = 'Eliminar') {
+      const modal = document.getElementById('modal-confirm');
+      const titleEl = document.getElementById('confirm-modal-title');
+      const msgEl = document.getElementById('confirm-modal-msg');
+      const okBtn = document.getElementById('confirm-modal-ok-btn');
+
+      if (!modal) {
+        if (typeof onConfirm === 'function') onConfirm();
+        return;
+      }
+
+      titleEl.textContent = title || 'Confirmar acción';
+      msgEl.textContent = message || '¿Seguro que deseas continuar?';
+      okBtn.textContent = confirmBtnText;
+      pendingConfirmAction = onConfirm;
+
+      okBtn.onclick = function () {
+        const fn = pendingConfirmAction;
+        closeConfirmModal();
+        if (typeof fn === 'function') fn();
+      };
+
+      modal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeConfirmModal() {
+      const modal = document.getElementById('modal-confirm');
+      if (modal) modal.classList.add('hidden');
+      pendingConfirmAction = null;
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      const m = document.getElementById('toast-msg');
+      m.textContent = msg;
+      t.classList.remove('translate-y-24', 'opacity-0');
+      setTimeout(() => {
+        t.classList.add('translate-y-24', 'opacity-0');
+      }, 3000);
+    }
+
+    function setTripPurpose(val) {
+      const input = document.getElementById('trip-purpose');
+      if (input) input.value = val;
+      document.querySelectorAll('.trip-purpose-chip').forEach(btn => {
+        if (btn.textContent.trim() === val) {
+          btn.className = "trip-purpose-chip px-2 py-1.5 rounded-lg text-xs font-semibold bg-cyan-600 text-white text-center border border-cyan-500";
+        } else {
+          btn.className = "trip-purpose-chip px-2 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 text-center border border-slate-700";
+        }
+      });
+    }
+
+    function onTripKmChange(source) {
+      const startEl = document.getElementById('trip-start-km');
+      const endEl = document.getElementById('trip-end-km');
+      const distEl = document.getElementById('trip-distance');
+
+      const start = parseFloat(startEl?.value) || 0;
+      const end = parseFloat(endEl?.value) || 0;
+      const dist = parseFloat(distEl?.value) || 0;
+
+      if (source === 'start' || source === 'end') {
+        if (end > start) {
+          if (distEl) distEl.value = (end - start).toFixed(1).replace(/\.0$/, '');
+        }
+      } else if (source === 'dist') {
+        if (start > 0 && dist > 0) {
+          if (endEl) endEl.value = Math.round(start + dist);
+        }
+      }
+    }
+
+    function saveTrip(e) {
+      e.preventDefault();
+      const id = document.getElementById('trip-id').value;
+      const startKm = Number(document.getElementById('trip-start-km').value) || 0;
+      let endKm = Number(document.getElementById('trip-end-km').value) || 0;
+      let dist = parseFloat(document.getElementById('trip-distance').value) || 0;
+
+      if (dist <= 0 && endKm > startKm) {
+        dist = endKm - startKm;
+      }
+      if (endKm <= startKm && dist > 0) {
+        endKm = startKm + dist;
+      }
+
+      if (endKm < startKm) {
+        showToast('El Km final no puede ser menor que el inicial');
+        return;
+      }
+
+      const data = {
+        id: id || 't_' + Date.now(),
+        date: document.getElementById('trip-date').value,
+        startKm: startKm,
+        endKm: endKm,
+        distance: dist,
+        purpose: document.getElementById('trip-purpose').value || 'General',
+        route: document.getElementById('trip-route').value || '',
+        notes: document.getElementById('trip-notes').value || ''
+      };
+
+      if (!Array.isArray(appData.trips)) appData.trips = [];
+
+      if (id) {
+        const index = appData.trips.findIndex(x => String(x.id) === String(id));
+        if (index !== -1) appData.trips[index] = data;
+      } else {
+        appData.trips.push(data);
+      }
+
+      saveData();
+      closeModal('trips');
+      renderAll();
+      showToast(id ? 'Recorrido actualizado' : 'Recorrido guardado con éxito');
+    }
+
+    function editTrip(id) {
+      const item = (appData.trips || []).find(x => String(x.id) === String(id));
+      if (!item) return;
+      document.getElementById('trip-id').value = item.id;
+      document.getElementById('trip-date').value = item.date || '';
+      document.getElementById('trip-start-km').value = item.startKm ?? '';
+      document.getElementById('trip-end-km').value = item.endKm ?? '';
+      document.getElementById('trip-distance').value = item.distance ?? '';
+      setTripPurpose(item.purpose || 'Trabajo');
+      document.getElementById('trip-route').value = item.route || '';
+      document.getElementById('trip-notes').value = item.notes || '';
+      openModal('trips', true);
+    }
+
+    function saveQuickOdometer(e) {
+      e.preventDefault();
+      const val = Number(document.getElementById('quick-odometer-val').value) || 0;
+      const date = document.getElementById('quick-odometer-date').value;
+      const notes = document.getElementById('quick-odometer-notes').value || 'Actualización de odómetro';
+
+      if (val <= 0) {
+        showToast('Ingresa un kilometraje válido');
+        return;
+      }
+
+      const prevOdo = getLatestOdometer();
+      const dist = (prevOdo > 0 && val >= prevOdo) ? (val - prevOdo) : 0;
+
+      const data = {
+        id: 't_' + Date.now(),
+        date: date,
+        startKm: prevOdo > 0 ? prevOdo : val,
+        endKm: val,
+        distance: dist,
+        purpose: 'Odómetro',
+        route: 'Lectura de odómetro',
+        notes: notes
+      };
+
+      if (!Array.isArray(appData.trips)) appData.trips = [];
+      appData.trips.push(data);
+
+      saveData();
+      closeModal('odometer');
+      renderAll();
+      showToast(`Odómetro actualizado a ${val.toLocaleString('es-AR')} km`);
+    }
+
+    function editRecord(category, id) {
+      if (category === 'trips') editTrip(id);
+      else if (category === 'fuel') editFuel(id);
+      else if (category === 'service') editService(id);
+      else if (category === 'issues') editIssue(id);
+      else if (category === 'expenses') editExpense(id);
+    }
+
+    // FUEL CRUD
+    function saveFuel(e) {
+      e.preventDefault();
+      const id = document.getElementById('fuel-id').value;
+      const data = {
+        id: id || 'f_' + Date.now(),
+        date: document.getElementById('fuel-date').value,
+        km: Number(document.getElementById('fuel-km').value),
+        liters: Number(document.getElementById('fuel-liters').value),
+        cost: Number(document.getElementById('fuel-cost').value),
+        type: document.getElementById('fuel-type').value,
+        station: document.getElementById('fuel-station').value,
+        fullTank: document.getElementById('fuel-full-tank').checked,
+        notes: document.getElementById('fuel-notes').value
+      };
+
+      if (id) {
+        const index = appData.fuel.findIndex(x => String(x.id) === String(id));
+        if (index !== -1) appData.fuel[index] = data;
+      } else {
+        appData.fuel.push(data);
+      }
+
+      saveData();
+      closeModal('fuel');
+      renderAll();
+      showToast(id ? 'Carga actualizada con éxito' : 'Carga de combustible guardada');
+    }
+
+    function editFuel(id) {
+      const item = appData.fuel.find(x => String(x.id) === String(id));
+      if (!item) return;
+      document.getElementById('fuel-id').value = item.id;
+      document.getElementById('fuel-date').value = item.date || '';
+      document.getElementById('fuel-km').value = item.km ?? '';
+      document.getElementById('fuel-liters').value = item.liters ?? '';
+      document.getElementById('fuel-cost').value = item.cost ?? '';
+      setSelectValueSafely('fuel-type', item.type || 'Nafta Súper');
+      document.getElementById('fuel-station').value = item.station || '';
+      document.getElementById('fuel-full-tank').checked = item.fullTank !== false;
+      document.getElementById('fuel-notes').value = item.notes || '';
+      openModal('fuel', true);
+    }
+
+    // SERVICE CRUD
+    function saveService(e) {
+      e.preventDefault();
+      const id = document.getElementById('service-id').value;
+      const data = {
+        id: id || 's_' + Date.now(),
+        date: document.getElementById('service-date').value,
+        km: Number(document.getElementById('service-km').value),
+        type: document.getElementById('service-type').value,
+        workshop: document.getElementById('service-workshop').value,
+        cost: Number(document.getElementById('service-cost').value),
+        nextKm: document.getElementById('service-next-km').value ? Number(document.getElementById('service-next-km').value) : null,
+        nextDate: document.getElementById('service-next-date').value || '',
+        notes: document.getElementById('service-notes').value
+      };
+
+      if (id) {
+        const index = appData.service.findIndex(x => String(x.id) === String(id));
+        if (index !== -1) appData.service[index] = data;
+      } else {
+        appData.service.push(data);
+      }
+
+      saveData();
+      closeModal('service');
+      renderAll();
+      showToast(id ? 'Mantenimiento actualizado con éxito' : 'Registro de service guardado');
+    }
+
+    function editService(id) {
+      const item = appData.service.find(x => String(x.id) === String(id));
+      if (!item) return;
+      document.getElementById('service-id').value = item.id;
+      document.getElementById('service-date').value = item.date || '';
+      document.getElementById('service-km').value = item.km ?? '';
+      setSelectValueSafely('service-type', item.type || 'Cambio de Aceite y Filtro');
+      document.getElementById('service-workshop').value = item.workshop || '';
+      document.getElementById('service-cost').value = item.cost ?? '';
+      document.getElementById('service-next-km').value = item.nextKm || '';
+      document.getElementById('service-next-date').value = item.nextDate || '';
+      document.getElementById('service-notes').value = item.notes || '';
+      openModal('service', true);
+    }
+
+    // ISSUE CRUD
+    function saveIssue(e) {
+      e.preventDefault();
+      const id = document.getElementById('issue-id').value;
+      const data = {
+        id: id || 'i_' + Date.now(),
+        date: document.getElementById('issue-date').value,
+        status: document.getElementById('issue-status').value,
+        title: document.getElementById('issue-title').value,
+        cost: Number(document.getElementById('issue-cost').value) || 0,
+        resolvedDate: document.getElementById('issue-resolved-date').value || '',
+        notes: document.getElementById('issue-notes').value
+      };
+
+      if (id) {
+        const index = appData.issues.findIndex(x => String(x.id) === String(id));
+        if (index !== -1) appData.issues[index] = data;
+      } else {
+        appData.issues.push(data);
+      }
+
+      saveData();
+      closeModal('issues');
+      renderAll();
+      showToast(id ? 'Avería actualizada con éxito' : 'Avería guardada');
+    }
+
+    function editIssue(id) {
+      const item = appData.issues.find(x => String(x.id) === String(id));
+      if (!item) return;
+      document.getElementById('issue-id').value = item.id;
+      document.getElementById('issue-date').value = item.date || '';
+      setSelectValueSafely('issue-status', item.status || 'Pendiente');
+      document.getElementById('issue-title').value = item.title || '';
+      document.getElementById('issue-cost').value = item.cost ?? '';
+      document.getElementById('issue-resolved-date').value = item.resolvedDate || '';
+      document.getElementById('issue-notes').value = item.notes || '';
+      openModal('issues', true);
+    }
+
+    function changeIssueStatus(id, newStatus) {
+      const item = appData.issues.find(x => String(x.id) === String(id));
+      if (!item) return;
+      item.status = newStatus;
+      if (newStatus === 'Resuelto' && !item.resolvedDate) {
+        item.resolvedDate = new Date().toISOString().split('T')[0];
+      }
+      saveData();
+      renderAll();
+      showToast(`Estado actualizado a: ${newStatus}`);
+    }
+
+    // EXPENSE CRUD
+    function saveExpense(e) {
+      e.preventDefault();
+      const id = document.getElementById('expense-id').value;
+      const data = {
+        id: id || 'e_' + Date.now(),
+        date: document.getElementById('expense-date').value,
+        cat: document.getElementById('expense-cat').value,
+        amount: Number(document.getElementById('expense-amount').value),
+        dueDate: document.getElementById('expense-due-date').value || '',
+        detail: document.getElementById('expense-detail').value
+      };
+
+      if (id) {
+        const index = appData.expenses.findIndex(x => String(x.id) === String(id));
+        if (index !== -1) appData.expenses[index] = data;
+      } else {
+        appData.expenses.push(data);
+      }
+
+      saveData();
+      closeModal('expenses');
+      renderAll();
+      showToast(id ? 'Gasto actualizado con éxito' : 'Gasto guardado');
+    }
+
+    function editExpense(id) {
+      const item = appData.expenses.find(x => String(x.id) === String(id));
+      if (!item) return;
+      document.getElementById('expense-id').value = item.id;
+      document.getElementById('expense-date').value = item.date || '';
+      setSelectValueSafely('expense-cat', item.cat || 'Seguro');
+      document.getElementById('expense-amount').value = item.amount ?? '';
+      document.getElementById('expense-due-date').value = item.dueDate || '';
+      document.getElementById('expense-detail').value = item.detail || '';
+      openModal('expenses', true);
+    }
+
+    // GENERAL DELETE FUNCTION (Compatible con Sandbox de Google Sites)
+    function deleteRecord(category, id) {
+      const labels = {
+        trips: 'este recorrido',
+        fuel: 'esta carga de combustible',
+        service: 'este registro de mantenimiento',
+        issues: 'esta avería',
+        expenses: 'este gasto'
+      };
+      askConfirmation(
+        'Eliminar registro',
+        `¿Seguro que deseas eliminar ${labels[category] || 'este registro'}? Esta acción no se puede deshacer.`,
+        function () {
+          if (category === 'trips' && Array.isArray(appData.trips)) appData.trips = appData.trips.filter(x => String(x.id) !== String(id));
+          if (category === 'fuel') appData.fuel = appData.fuel.filter(x => String(x.id) !== String(id));
+          if (category === 'service') appData.service = appData.service.filter(x => String(x.id) !== String(id));
+          if (category === 'issues') appData.issues = appData.issues.filter(x => String(x.id) !== String(id));
+          if (category === 'expenses') appData.expenses = appData.expenses.filter(x => String(x.id) !== String(id));
+
+          saveData();
+          renderAll();
+          showToast('Registro eliminado');
+        },
+        'Eliminar'
+      );
+    }
+
+    // VEHICLE CONFIG MODAL
+    function openVehicleConfigModal() {
+      const v = appData.vehicle;
+      document.getElementById('veh-model').value = v.model || '';
+      document.getElementById('veh-year').value = v.year || '';
+      document.getElementById('veh-plate').value = v.plate || '';
+      document.getElementById('veh-unit').value = v.unit || 'kml';
+      document.getElementById('modal-vehicle').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeVehicleConfigModal() {
+      document.getElementById('modal-vehicle').classList.add('hidden');
+    }
+
+    function saveVehicleConfig(e) {
+      e.preventDefault();
+      appData.vehicle = {
+        model: document.getElementById('veh-model').value,
+        year: document.getElementById('veh-year').value,
+        plate: document.getElementById('veh-plate').value,
+        unit: document.getElementById('veh-unit').value
+      };
+      saveData();
+      closeVehicleConfigModal();
+      renderAll();
+      showToast('Datos del vehículo actualizados');
+    }
+
+    /* ========================================================
+       NAVIGATION & TABS
+       ======================================================== */
+    function switchTab(tabId) {
+      // Hide all views
+      document.querySelectorAll('.tab-view').forEach(view => view.classList.add('hidden'));
+
+      // Show target
+      const targetView = document.getElementById(`view-${tabId}`);
+      if (targetView) targetView.classList.remove('hidden');
+
+      // Update Desktop tabs styling
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        const isRight = btn.id === 'tab-btn-data' ? 'ml-auto ' : '';
+        btn.className = `tab-btn ${isRight}px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800/50 shrink-0`;
+      });
+      const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+      if (activeBtn) {
+        const isRight = activeBtn.id === 'tab-btn-data' ? 'ml-auto ' : '';
+        activeBtn.className = `tab-btn active ${isRight}px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-2 text-blue-400 bg-slate-800/80 border border-blue-500/30 shrink-0`;
+      }
+
+      // Update Mobile nav styling
+      document.querySelectorAll('.mobile-tab-btn').forEach(btn => {
+        if (btn.dataset.tab === tabId) {
+          btn.classList.add('text-blue-400');
+          btn.classList.remove('text-slate-400');
+        } else {
+          btn.classList.remove('text-blue-400');
+          btn.classList.add('text-slate-400');
+        }
+      });
+
+      if (tabId === 'dashboard') {
+        setTimeout(updateCharts, 50);
+      }
+      lucide.createIcons();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    /* ========================================================
+       BACKUP, GOOGLE SITES HTML GENERATOR & EXPORT / IMPORT
+       ======================================================== */
+    function exportDataJSON() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `bitacora_auto_${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast('Copia JSON descargada');
+    }
+
+    function exportDataCSV() {
+      const events = getAllChronologicalEvents();
+      let csvContent = "data:text/csv;charset=utf-8,";
+      csvContent += "Categoria,Fecha,Titulo,Subtitulo,Costo,Notas\n";
+
+      events.forEach(e => {
+        const row = [
+          `"${e.category}"`,
+          `"${e.date}"`,
+          `"${e.title.replace(/"/g, '""')}"`,
+          `"${e.sub.replace(/"/g, '""')}"`,
+          `"${e.cost || 0}"`,
+          `"${(e.notes || '').replace(/"/g, '""')}"`
+        ];
+        csvContent += row.join(",") + "\n";
+      });
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `gastos_auto_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      showToast('Archivo CSV descargado');
+    }
+
+    // Import file listener
+    document.getElementById('import-json-input')?.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const parsed = JSON.parse(evt.target.result);
+          if (parsed && typeof parsed === 'object') {
+            appData = normalizeState(parsed);
+            saveData();
+            renderAll();
+            showToast('Datos restaurados correctamente');
+          }
+        } catch (err) {
+          showToast('Error al leer el archivo JSON. Verifica el formato.');
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    function clearAllRecords() {
+      askConfirmation(
+        'Vaciar todos los registros',
+        '¿Deseas dejar el historial en cero conservando los datos de tu vehículo?',
+        function () {
+          appData = {
+            vehicle: { ...appData.vehicle },
+            fuel: [],
+            trips: [],
+            service: [],
+            issues: [],
+            expenses: []
+          };
+          saveData();
+          renderAll();
+          showToast('Todos los registros fueron vaciados');
+        },
+        'Vaciar todo'
+      );
+    }
+
+    function loadSampleData() {
+      askConfirmation(
+        'Cargar datos de demostración',
+        'Esto cargará registros de ejemplo en tu Renault Megane 1.6 Pack Plus. ¿Deseas continuar?',
+        function () {
+          appData = JSON.parse(JSON.stringify(demoState));
+          saveData();
+          renderAll();
+          showToast('Datos demo cargados con éxito');
+        },
+        'Cargar Demo'
+      );
+    }
+
+    function copyToClipboardText(text, successMsg) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          showToast(successMsg);
+        }).catch(() => {
+          fallbackCopyText(text, successMsg);
+        });
+      } else {
+        fallbackCopyText(text, successMsg);
+      }
+    }
+
+    function fallbackCopyText(text, successMsg) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast(successMsg);
+      } catch (e) {
+        showToast('No se pudo copiar automáticamente');
+      }
+      ta.remove();
+    }
+
+    function copyAppsScriptCode() {
+      const code = [
+        "const PROP_KEY = 'AUTOTRACK_STATE_JSON';",
+        "",
+        "function doGet(e) {",
+        "  try {",
+        "    const props = PropertiesService.getScriptProperties();",
+        "    const raw = props.getProperty(PROP_KEY);",
+        "    const data = raw ? JSON.parse(raw) : null;",
+        "    return ContentService.createTextOutput(JSON.stringify({ status: 'ok', data: data })).setMimeType(ContentService.MimeType.JSON);",
+        "  } catch (err) {",
+        "    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: err.toString() })).setMimeType(ContentService.MimeType.JSON);",
+        "  }",
+        "}",
+        "",
+        "function doPost(e) {",
+        "  try {",
+        "    const contents = e && e.postData && e.postData.contents ? e.postData.contents : '';",
+        "    const parsed = JSON.parse(contents);",
+        "    const payload = parsed.data ? parsed.data : parsed;",
+        "    PropertiesService.getScriptProperties().setProperty(PROP_KEY, JSON.stringify(payload));",
+        "    return ContentService.createTextOutput(JSON.stringify({ status: 'ok' })).setMimeType(ContentService.MimeType.JSON);",
+        "  } catch (err) {",
+        "    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: err.toString() })).setMimeType(ContentService.MimeType.JSON);",
+        "  }",
+        "}"
+      ].join("\n");
+      copyToClipboardText(code, 'Código de Google Apps Script copiado al portapapeles');
+    }
+
+    function copyEmbeddedHtmlForGoogleSites() {
+      const inputUrl = (document.getElementById('cloud-sync-url-input')?.value || cloudSyncUrl || '').trim();
+      if (inputUrl) cloudSyncUrl = inputUrl;
+
+      let rawHtml = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+      // Inyectar la URL de Apps Script y el estado actual como defaultState fijo en el HTML para Google Sites
+      rawHtml = rawHtml.replace(
+        /\/\*CLOUD_URL_START\*\/[\s\S]*?\/\*CLOUD_URL_END\*\//,
+        `/*CLOUD_URL_START*/\n    const DEFAULT_CLOUD_SYNC_URL = ${JSON.stringify(cloudSyncUrl)};\n    /*CLOUD_URL_END*/`
+      );
+      rawHtml = rawHtml.replace(
+        /\/\*DEFAULT_STATE_START\*\/[\s\S]*?\/\*DEFAULT_STATE_END\*\//,
+        `/*DEFAULT_STATE_START*/\n    const defaultState = ${JSON.stringify(appData, null, 6)};\n    /*DEFAULT_STATE_END*/`
+      );
+
+      copyToClipboardText(rawHtml, '¡HTML con tu vehículo, datos y URL copiado! Pégalo en Google Sites.');
+    }
+
+    /* ========================================================
+       INIT
+       ======================================================== */
+        /* ========================================================
+       PWA: SERVICE WORKER & BOTÓN DE INSTALACIÓN
+       ======================================================== */
+    let deferredPrompt = null;
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then((reg) => {
+          console.log('Service Worker registrado con éxito:', reg.scope);
+        }).catch((err) => {
+          console.log('Error registrando Service Worker:', err);
+        });
+      });
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const btn = document.getElementById('btn-install-pwa');
+      if (btn) {
+        btn.classList.remove('hidden');
+        btn.classList.add('inline-flex');
+      }
+    });
+
+    function installPwa() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            showToast('¡AutoTrack instalado en tu pantalla de inicio!');
+            const btn = document.getElementById('btn-install-pwa');
+            if (btn) btn.classList.add('hidden');
+          }
+          deferredPrompt = null;
+        });
+      } else {
+        const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+        if (isIos) {
+          askConfirmation(
+            'Instalar en iPhone / iPad',
+            'Para instalar en tu celular: toca el botón Compartir (cuadrado con flecha hacia arriba) en Safari y selecciona "Agregar a pantalla de inicio".',
+            null,
+            'Entendido'
+          );
+        } else {
+          askConfirmation(
+            'Instalar en la Pantalla de Inicio',
+            'En tu navegador, abre el menú de opciones (los tres puntos verticales ⋮) y elige "Instalar aplicación" o "Agregar a la pantalla principal".',
+            null,
+            'Entendido'
+          );
+        }
+      }
+    }
+
+    window.addEventListener('appinstalled', () => {
+      showToast('AutoTrack ya está instalada en tu dispositivo');
+      const btn = document.getElementById('btn-install-pwa');
+      if (btn) btn.classList.add('hidden');
+    });
+
+    window.onload = function () {
+      initCharts();
+      loadData();
+    };
+  </script>
+</body>
+</html>
