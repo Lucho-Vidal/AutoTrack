@@ -1,26 +1,62 @@
 /**
  * ============================================================================
  * AUTOTRACK PRO - BACKEND DE PERSISTENCIA PARA GOOGLE SITES (GOOGLE APPS SCRIPT)
+ * CON AUTENTICACIÓN POR TOKEN / PIN
  * ============================================================================
  *
- * INSTRUCCIONES DE INSTALACIÓN (1 MINUTO):
- * 1. Abre Google Drive y crea una Hoja de cálculo de Google nueva (Google Sheets).
- * 2. En el menú superior, ve a: Extensiones > Apps Script.
- * 3. Borra el código que aparece por defecto y pega todo este archivo.
- * 4. Haz clic en el ícono de Guardar (💾) arriba.
- * 5. Haz clic en el botón azul "Implementar" (arriba a la derecha) > "Nueva implementación".
- * 6. En "Selecciona el tipo" (⚙️), elige "Aplicación web" (Web App).
- * 7. Configura estos 2 campos:
- *    - Ejecutar como: "Yo" (tu cuenta de Google)
- *    - Quién tiene acceso: "Cualquier persona" (Anyone) -> Necesario para que el iframe de Google Sites pueda leer/guardar sin bloqueo CORS.
- * 8. Haz clic en "Implementar", autoriza los permisos si te lo pide, y copia la "URL de la aplicación web" (termina en /exec).
- * 9. Pega esa URL en la pestaña "Nube & Backup" de AutoTrack (o en la constante DEFAULT_CLOUD_SYNC_URL del HTML).
+ * INSTRUCCIONES DE CONFIGURACIÓN DEL PIN / TOKEN (API_SECRET):
+ * -------------------------------------------------------------
+ * 1. Abre el editor de Google Apps Script de tu Hoja de Cálculo.
+ * 2. Opción A (Recomendada desde la interfaz):
+ *    - En el menú lateral izquierdo, haz clic en el ícono de engranaje ⚙️ (Configuración del proyecto).
+ *    - Baja hasta "Propiedades de la secuencia de comandos" (Script Properties) y haz clic en "Agregar propiedad de secuencia de comandos".
+ *    - En Propiedad escribe: API_SECRET
+ *    - En Valor escribe tu PIN o clave (por ejemplo: 1234 o tu contraseña secreta).
+ *    - Guarda los cambios.
+ * 
+ * 3. Opción B (Desde código):
+ *    - Modifica la función setApiSecret() al final de este archivo con tu PIN y haz clic en "Ejecutar".
+ * 
+ * 4. Recuerda realizar una "Nueva implementación" (o actualizar la versión existente a una nueva versión)
+ *    en Implementar > Administrar implementaciones para que los cambios tomen efecto.
  */
 
 const PROP_KEY = 'AUTOTRACK_STATE_JSON';
+const API_SECRET_KEY = 'API_SECRET';
+
+/**
+ * Valida el token recibido contra el API_SECRET almacenado en PropertiesService
+ */
+function validarToken(tokenRecibido) {
+  const secret = PropertiesService.getScriptProperties().getProperty(API_SECRET_KEY);
+  if (!secret) {
+    // Si no se configuró API_SECRET en el script, se deniega el acceso por seguridad
+    Logger.log('ADVERTENCIA: API_SECRET no configurado en ScriptProperties.');
+    return false;
+  }
+  return tokenRecibido != null && String(tokenRecibido).trim() === String(secret).trim();
+}
+
+/**
+ * Respuesta estándar de error de autenticación
+ */
+function authErrorResponse() {
+  return ContentService
+    .createTextOutput(JSON.stringify({
+      status: 'error',
+      authError: true,
+      message: 'No autorizado'
+    }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
 
 function doGet(e) {
   try {
+    const token = e && e.parameter ? e.parameter.token : null;
+    if (!validarToken(token)) {
+      return authErrorResponse();
+    }
+
     const props = PropertiesService.getScriptProperties();
     const raw = props.getProperty(PROP_KEY);
     const data = raw ? JSON.parse(raw) : null;
@@ -47,6 +83,11 @@ function doPost(e) {
     }
 
     const parsed = JSON.parse(contents);
+    const token = parsed && parsed.token ? parsed.token : null;
+    if (!validarToken(token)) {
+      return authErrorResponse();
+    }
+
     const payload = parsed.data ? parsed.data : parsed;
     const nowIso = new Date().toISOString();
 
@@ -136,4 +177,16 @@ function syncToSpreadsheet(data) {
     expRows.push([x.id || '', x.date || '', x.cat || '', x.amount || 0, x.dueDate || '', x.detail || '']);
   });
   shExp.getRange(1, 1, expRows.length, expRows[0].length).setValues(expRows);
+}
+
+/**
+ * Función de utilidad para configurar o actualizar tu PIN/Token en Apps Script directamente:
+ * 1. Cambia "MI_PIN_SECRETO" por tu PIN/clave deseada.
+ * 2. Selecciona "setApiSecret" en el menú desplegable superior del editor.
+ * 3. Haz clic en "Ejecutar".
+ */
+function setApiSecret(nuevoPin) {
+  const pin = nuevoPin || '1234'; // Cambia por tu PIN deseado
+  PropertiesService.getScriptProperties().setProperty('API_SECRET', String(pin).trim());
+  Logger.log('API_SECRET configurado exitosamente con el PIN indicado.');
 }

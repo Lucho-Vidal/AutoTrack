@@ -105,6 +105,12 @@
           class="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition border border-slate-800">
           <i data-lucide="settings" class="w-5 h-5"></i>
         </button>
+
+        <!-- Cerrar Sesión / Bloquear -->
+        <button onclick="lockSession()" id="btn-lock-session" title="Cerrar sesión / Bloquear"
+          class="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition border border-slate-800">
+          <i data-lucide="lock" class="w-5 h-5"></i>
+        </button>
       </div>
     </div>
   </header>
@@ -1337,6 +1343,57 @@
     </div>
   </div>
 
+  <!-- MODAL: LOGIN / BLOQUEO POR PIN (AUTENTICACIÓN) -->
+  <div id="modal-auth-overlay" class="fixed inset-0 z-[100] hidden bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="relative w-full max-w-sm sm:max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 sm:p-8 space-y-5">
+      <!-- Glow effect -->
+      <div class="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-48 bg-blue-500/15 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div class="text-center space-y-2 relative">
+        <div class="inline-flex p-3 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl shadow-lg shadow-blue-500/25 mb-1">
+          <i data-lucide="shield-check" class="w-8 h-8 text-white"></i>
+        </div>
+        <h2 class="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center justify-center gap-2">
+          Auto<span class="text-blue-500">Track</span>
+          <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 uppercase tracking-wider">Seguro</span>
+        </h2>
+        <p class="text-xs sm:text-sm text-slate-400">Ingresá tu Clave de Acceso / PIN para continuar</p>
+      </div>
+
+      <form id="auth-form" onsubmit="handleAuthSubmit(event)" class="space-y-4 relative">
+        <div>
+          <label for="auth-pin-input" class="block text-xs font-semibold text-slate-300 mb-1.5">Clave de Acceso / PIN</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+              <i data-lucide="key-round" class="w-4 h-4"></i>
+            </span>
+            <input type="password" id="auth-pin-input" required autocomplete="current-password" placeholder="••••"
+              class="w-full bg-slate-800/90 border border-slate-700 rounded-xl pl-10 pr-10 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-center tracking-widest font-mono font-bold text-lg">
+            <button type="button" onclick="togglePinVisibility()" title="Mostrar/Ocultar clave" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300">
+              <i id="auth-eye-icon" data-lucide="eye" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Mensaje de error de autenticación -->
+        <div id="auth-error-msg" class="hidden p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
+          <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i>
+          <span id="auth-error-text">Clave incorrecta o sesión inválida</span>
+        </div>
+
+        <button type="submit" id="btn-auth-submit"
+          class="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition active:scale-[0.98]">
+          <span id="btn-auth-text">Ingresar</span>
+          <i id="btn-auth-icon" data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+      </form>
+
+      <div class="pt-2 border-t border-slate-800/80 text-center">
+        <p class="text-[11px] text-slate-500">Validado en Google Apps Script sin claves en el código público.</p>
+      </div>
+    </div>
+  </div>
+
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div id="toast"
     class="fixed bottom-20 md:bottom-6 right-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs shadow-2xl flex items-center gap-2 pointer-events-none">
@@ -1537,7 +1594,132 @@
       }
     }
 
+    /* ========================================================
+       SISTEMA DE AUTENTICACIÓN POR TOKEN / PIN
+       ======================================================== */
+    const AUTH_TOKEN_KEY = 'autotrack_auth_token';
+
+    function getAuthToken() {
+      try {
+        return (localStorage.getItem(AUTH_TOKEN_KEY) || '').trim();
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function setAuthToken(token) {
+      try {
+        localStorage.setItem(AUTH_TOKEN_KEY, (token || '').trim());
+      } catch (e) {}
+    }
+
+    function clearAuthToken() {
+      try {
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+      } catch (e) {}
+    }
+
+    function showAuthModal(errorMsg = '') {
+      const modal = document.getElementById('modal-auth-overlay');
+      const errBox = document.getElementById('auth-error-msg');
+      const errTxt = document.getElementById('auth-error-text');
+      const input = document.getElementById('auth-pin-input');
+      const submitBtn = document.getElementById('btn-auth-submit');
+      const btnText = document.getElementById('btn-auth-text');
+
+      if (submitBtn) submitBtn.disabled = false;
+      if (btnText) btnText.textContent = 'Ingresar';
+
+      if (errorMsg) {
+        if (errTxt) errTxt.textContent = errorMsg;
+        if (errBox) errBox.classList.remove('hidden');
+      } else {
+        if (errBox) errBox.classList.add('hidden');
+      }
+
+      if (modal) {
+        modal.classList.remove('hidden');
+      }
+
+      if (input) {
+        input.value = '';
+        setTimeout(() => input.focus(), 150);
+      }
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function hideAuthModal() {
+      const modal = document.getElementById('modal-auth-overlay');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function togglePinVisibility() {
+      const input = document.getElementById('auth-pin-input');
+      const eyeIcon = document.getElementById('auth-eye-icon');
+      if (!input) return;
+      if (input.type === 'password') {
+        input.type = 'text';
+        if (eyeIcon) eyeIcon.setAttribute('data-lucide', 'eye-off');
+      } else {
+        input.type = 'password';
+        if (eyeIcon) eyeIcon.setAttribute('data-lucide', 'eye');
+      }
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function lockSession() {
+      clearAuthToken();
+      appData = normalizeState(defaultState);
+      renderAll();
+      showAuthModal();
+      showToast('Sesión bloqueada');
+    }
+
+    async function handleAuthSubmit(e) {
+      if (e) e.preventDefault();
+      const input = document.getElementById('auth-pin-input');
+      const pin = (input?.value || '').trim();
+      const errBox = document.getElementById('auth-error-msg');
+      const errTxt = document.getElementById('auth-error-text');
+      const submitBtn = document.getElementById('btn-auth-submit');
+      const btnText = document.getElementById('btn-auth-text');
+
+      if (!pin) {
+        if (errTxt) errTxt.textContent = 'Por favor ingresá tu clave de acceso.';
+        if (errBox) errBox.classList.remove('hidden');
+        return;
+      }
+
+      if (submitBtn) submitBtn.disabled = true;
+      if (btnText) btnText.textContent = 'Verificando...';
+
+      setAuthToken(pin);
+
+      if (cloudSyncUrl) {
+        const ok = await pullFromCloud(false);
+        if (ok) {
+          hideAuthModal();
+          showToast('Bienvenido a AutoTrack');
+        } else {
+          // Si fue error de auth, pullFromCloud ya limpió el token y ejecutó showAuthModal
+          if (getAuthToken()) {
+            showAuthModal('No se pudo verificar la clave con el servidor. Revisa tu conexión.');
+          }
+        }
+      } else {
+        hideAuthModal();
+        await loadData();
+        showToast('Acceso local concedido');
+      }
+    }
+
     async function loadData() {
+      const token = getAuthToken();
+      if (!token) {
+        showAuthModal();
+        return;
+      }
+
       let loaded = null;
 
       // 1. Intentar leer URL de nube guardada
@@ -1615,6 +1797,11 @@
         if (manualShowToast) showToast('Primero ingresa la URL de Google Apps Script');
         return false;
       }
+      const token = getAuthToken();
+      if (!token) {
+        showAuthModal('Por favor ingresa tu clave de acceso para guardar.');
+        return false;
+      }
       try {
         isSyncing = true;
         updateSyncStatusUI('syncing', 'Guardando...');
@@ -1622,11 +1809,19 @@
         const response = await fetch(cloudSyncUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'save', data: appData }),
+          body: JSON.stringify({ action: 'save', data: appData, token: token }),
           redirect: 'follow'
         });
         const resJson = await response.json();
         isSyncing = false;
+
+        if (resJson && (resJson.authError === true || (resJson.status === 'error' && resJson.message === 'No autorizado'))) {
+          clearAuthToken();
+          updateSyncStatusUI('cloud-error', 'No autorizado');
+          showAuthModal('Clave incorrecta o sesión inválida');
+          return false;
+        }
+
         if (resJson && resJson.status === 'ok') {
           updateSyncStatusUI('cloud-ok', 'Sincronizado');
           if (manualShowToast) showToast('Datos guardados en Google Sheets con éxito');
@@ -1638,7 +1833,7 @@
         isSyncing = false;
         console.error('Error guardando en la nube:', err);
         updateSyncStatusUI('cloud-error', 'Error al sincronizar');
-        if (manualShowToast) showToast('No se pudo conectar con Google Apps Script. Verifica la URL y permisos.');
+        if (manualShowToast) showToast('No se pudo conectar con Google Apps Script. Verifica la clave y permisos.');
         return false;
       }
     }
@@ -1648,16 +1843,28 @@
         if (manualShowToast) showToast('Primero ingresa la URL de Google Apps Script');
         return false;
       }
+      const token = getAuthToken();
+      if (!token) {
+        showAuthModal('Por favor ingresa tu clave de acceso para sincronizar.');
+        return false;
+      }
       try {
         isSyncing = true;
         updateSyncStatusUI('syncing', 'Cargando nube...');
         const sep = cloudSyncUrl.includes('?') ? '&' : '?';
-        const response = await fetch(`${cloudSyncUrl}${sep}action=load&t=${Date.now()}`, {
+        const response = await fetch(`${cloudSyncUrl}${sep}action=load&t=${Date.now()}&token=${encodeURIComponent(token)}`, {
           method: 'GET',
           redirect: 'follow'
         });
         const resJson = await response.json();
         isSyncing = false;
+
+        if (resJson && (resJson.authError === true || (resJson.status === 'error' && resJson.message === 'No autorizado'))) {
+          clearAuthToken();
+          updateSyncStatusUI('cloud-error', 'No autorizado');
+          showAuthModal('Clave incorrecta o sesión inválida');
+          return false;
+        }
 
         if (resJson && resJson.status === 'ok') {
           if (resJson.data && typeof resJson.data === 'object') {
@@ -1669,6 +1876,7 @@
           } else {
             // La hoja está vacía por primera vez: subimos el estado actual
             await pushToCloud(false);
+            renderAll();
             if (manualShowToast) showToast('Conectado: Se inicializó la hoja con tus datos actuales');
           }
           return true;
@@ -1679,7 +1887,7 @@
         isSyncing = false;
         console.error('Error descargando de la nube:', err);
         updateSyncStatusUI('cloud-error', 'Sin conexión nube');
-        if (manualShowToast) showToast('Error al leer desde Google Apps Script. Verifica que el acceso sea "Cualquier persona".');
+        if (manualShowToast) showToast('Error al leer desde Google Apps Script. Verifica la clave y permisos.');
         return false;
       }
     }
@@ -3275,13 +3483,26 @@
     function copyAppsScriptCode() {
       const code = [
         "const PROP_KEY = 'AUTOTRACK_STATE_JSON';",
+        "const API_SECRET_KEY = 'API_SECRET';",
+        "",
+        "function validarToken(tokenRecibido) {",
+        "  const secret = PropertiesService.getScriptProperties().getProperty(API_SECRET_KEY);",
+        "  if (!secret) return false;",
+        "  return tokenRecibido != null && String(tokenRecibido).trim() === String(secret).trim();",
+        "}",
+        "",
+        "function authErrorResponse() {",
+        "  return ContentService.createTextOutput(JSON.stringify({ status: 'error', authError: true, message: 'No autorizado' })).setMimeType(ContentService.MimeType.JSON);",
+        "}",
         "",
         "function doGet(e) {",
         "  try {",
+        "    const token = e && e.parameter ? e.parameter.token : null;",
+        "    if (!validarToken(token)) return authErrorResponse();",
         "    const props = PropertiesService.getScriptProperties();",
         "    const raw = props.getProperty(PROP_KEY);",
         "    const data = raw ? JSON.parse(raw) : null;",
-        "    return ContentService.createTextOutput(JSON.stringify({ status: 'ok', data: data })).setMimeType(ContentService.MimeType.JSON);",
+        "    return ContentService.createTextOutput(JSON.stringify({ status: 'ok', data: data, updatedAt: props.getProperty('AUTOTRACK_UPDATED_AT') || null })).setMimeType(ContentService.MimeType.JSON);",
         "  } catch (err) {",
         "    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: err.toString() })).setMimeType(ContentService.MimeType.JSON);",
         "  }",
@@ -3291,6 +3512,8 @@
         "  try {",
         "    const contents = e && e.postData && e.postData.contents ? e.postData.contents : '';",
         "    const parsed = JSON.parse(contents);",
+        "    const token = parsed && parsed.token ? parsed.token : null;",
+        "    if (!validarToken(token)) return authErrorResponse();",
         "    const payload = parsed.data ? parsed.data : parsed;",
         "    PropertiesService.getScriptProperties().setProperty(PROP_KEY, JSON.stringify(payload));",
         "    return ContentService.createTextOutput(JSON.stringify({ status: 'ok' })).setMimeType(ContentService.MimeType.JSON);",
@@ -3325,7 +3548,11 @@
        ======================================================== */
     window.onload = function () {
       initCharts();
-      loadData();
+      if (!getAuthToken()) {
+        showAuthModal();
+      } else {
+        loadData();
+      }
     };
   </script>
 </body>
